@@ -1,0 +1,13 @@
+absl-py==2.2.2
+cloudpickle==3.1.1
+etils==1.12.2
+Farama-Notifications==0.0.4
+fsspec==2025.3.2
+glfw==2.9.0
+gymnasium==1.1.1
+importlib_resources==6.5.2
+mujoco==3.3.2
+numpy==2.2.5
+PyOpenGL==3.1.9
+typing_extensions==4.13.2
+zipp==3.21.0

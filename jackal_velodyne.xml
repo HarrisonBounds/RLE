@@ -1,9 +1,13 @@
 <mujoco model="jackal">
     <compiler angle="radian" meshdir="mujoco_meshes/" />
-    <option timestep="0.002" integrator="RK4" />
+    <option timestep="0.002" integrator="RK4" gravity="0 0 -9.81"/>
     <size nconmax="1000" njmax="5000" />
-    <flag contact="enable" friction="enable" />
     
+    <default>
+        <joint armature="1" damping="1" limited="false" />
+        <geom condim="3" friction="1 0.5 0.5" solimp="0.9 0.95 0.001" solref="0.02 1"/>
+    </default>
+
     <asset>
         <material name="dark_grey" rgba="0.2 0.2 0.2 1.0" />
         <material name="light_grey" rgba="0.4 0.4 0.4 1.0" />
@@ -28,46 +32,39 @@
         <light name="spotlight" mode="targetbody" target="chassis_link" pos="0 0 2.0" dir="0 0 -1" 
                  cutoff="30" exponent="1" diffuse="1.0 1.0 1.0" specular="0.5 0.5 0.5"/>
 
-        <!-- Add a light on the right of the robot -->
-        <light name="right_light" mode="targetbody" target="chassis_link" pos="0.5 0 1.0" dir="-1 0 -1" 
-                 cutoff="30" exponent="1" diffuse="1.0 1.0 1.0" specular="0.5 0.5 0.5"/>
-        
-        <!-- Add a light on the left of the robot -->
-        <light name="left_light" mode="targetbody" target="chassis_link" pos="-0.5 0 1.0" dir="1 0 -1" 
-                 cutoff="30" exponent="1" diffuse="1.0 1.0 1.0" specular="0.5 0.5 0.5"/>
-
-        <body name="base_link" pos="0 0 0.098">
+        <body name="base_link" pos="0 0 0.067">
+            <freejoint name="root_joint"/>
             <body name="chassis_link" pos="0 0 0">
                 <geom type="mesh" mesh="jackal-base" material="dark_grey" pos="0 0 -0.067" euler="0 1.5708 1.5708" />
-                <!-- <geom type="box" size="0.21 0.155 0.092" pos="0 0 0.092" material="dark_grey" /> -->
+                <geom type="box" size="0.21 0.155 0.092" pos="0 0 0.092" material="dark_grey" rgba="0.2 0.2 0.2 0.2" />
                 <inertial pos="0.012 0.002 0.067" mass="16.523" diaginertia="0.3136 0.3922 0.4485" />
                 
                 <!-- Wheels -->
                 <body name="front_left_wheel_link" pos="0.131 0.187795 0.0345">
-                    <joint name="front_left_wheel" type="hinge" axis="0 1 0" />
+                    <joint name="front_left_wheel" type="hinge" axis="0 1 0" damping="0.1"/>
                     <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" />
-                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" />
+                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001" />
                     <inertial pos="0 0 0" mass="0.477" diaginertia="0.0013 0.0024 0.0013" />
                 </body>
                 
                 <body name="front_right_wheel_link" pos="0.131 -0.187795 0.0345">
-                    <joint name="front_right_wheel" type="hinge" axis="0 1 0" />
+                    <joint name="front_right_wheel" type="hinge" axis="0 1 0" damping="0.1"/>
                     <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" />
-                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" />
+                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001" />
                     <inertial pos="0 0 0" mass="0.477" diaginertia="0.0013 0.0024 0.0013" />
                 </body>
                 
                 <body name="rear_left_wheel_link" pos="-0.131 0.187795 0.0345">
-                    <joint name="rear_left_wheel" type="hinge" axis="0 1 0" />
+                    <joint name="rear_left_wheel" type="hinge" axis="0 1 0" damping="0.1"/>
                     <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" />
-                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" />
+                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001" />
                     <inertial pos="0 0 0" mass="0.477" diaginertia="0.0013 0.0024 0.0013" />
                 </body>
                 
                 <body name="rear_right_wheel_link" pos="-0.131 -0.187795 0.0345">
-                    <joint name="rear_right_wheel" type="hinge" axis="0 1 0" />
+                    <joint name="rear_right_wheel" type="hinge" axis="0 1 0" damping="0.1"/>
                     <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" />
-                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" />
+                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001"/>
                     <inertial pos="0 0 0" mass="0.477" diaginertia="0.0013 0.0024 0.0013" />
                 </body>
                 
@@ -136,9 +133,9 @@
     </worldbody>
     
     <actuator>
-        <velocity name="front_left_actuator" joint="front_left_wheel" kv="10" />
-        <velocity name="front_right_actuator" joint="front_right_wheel" kv="10" />
-        <velocity name="rear_left_actuator" joint="rear_left_wheel" kv="10" />
-        <velocity name="rear_right_actuator" joint="rear_right_wheel" kv="10" />
+        <motor name="front_left_actuator" joint="front_left_wheel" gear="20" ctrlrange="-1 1" />
+        <motor name="front_right_actuator" joint="front_right_wheel" gear="20" ctrlrange="-1 1" />
+        <motor name="rear_left_actuator" joint="rear_left_wheel" gear="20" ctrlrange="-1 1" />
+        <motor name="rear_right_actuator" joint="rear_right_wheel" gear="20" ctrlrange="-1 1" />
     </actuator>
 </mujoco>

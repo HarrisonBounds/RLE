@@ -36,15 +36,6 @@
       <inertia ixx="0.0013" ixy="0" ixz="0" iyy="0.0024" iyz="0" izz="0.0013"/>
     </inertial>
   </link>
-  <gazebo reference="front_left_wheel_link">
-    <material>Gazebo/DarkGrey</material>
-    <selfCollide>false</selfCollide>
-    <mu1 value="0.5"/>
-    <mu2 value="0.5"/>
-    <kp value="10000000.0"/>
-    <kd value="1"/>
-    <fdir1 value="1 0 0"/>
-  </gazebo>
   <joint name="front_left_wheel" type="continuous">
     <parent link="chassis_link"/>
     <child link="front_left_wheel_link"/>
@@ -82,15 +73,6 @@
       <inertia ixx="0.0013" ixy="0" ixz="0" iyy="0.0024" iyz="0" izz="0.0013"/>
     </inertial>
   </link>
-  <gazebo reference="front_right_wheel_link">
-    <material>Gazebo/DarkGrey</material>
-    <selfCollide>false</selfCollide>
-    <mu1 value="0.5"/>
-    <mu2 value="0.5"/>
-    <kp value="10000000.0"/>
-    <kd value="1"/>
-    <fdir1 value="1 0 0"/>
-  </gazebo>
   <joint name="front_right_wheel" type="continuous">
     <parent link="chassis_link"/>
     <child link="front_right_wheel_link"/>
@@ -128,15 +110,6 @@
       <inertia ixx="0.0013" ixy="0" ixz="0" iyy="0.0024" iyz="0" izz="0.0013"/>
     </inertial>
   </link>
-  <gazebo reference="rear_left_wheel_link">
-    <material>Gazebo/DarkGrey</material>
-    <selfCollide>false</selfCollide>
-    <mu1 value="0.5"/>
-    <mu2 value="0.5"/>
-    <kp value="10000000.0"/>
-    <kd value="1"/>
-    <fdir1 value="1 0 0"/>
-  </gazebo>
   <joint name="rear_left_wheel" type="continuous">
     <parent link="chassis_link"/>
     <child link="rear_left_wheel_link"/>
@@ -174,15 +147,6 @@
       <inertia ixx="0.0013" ixy="0" ixz="0" iyy="0.0024" iyz="0" izz="0.0013"/>
     </inertial>
   </link>
-  <gazebo reference="rear_right_wheel_link">
-    <material>Gazebo/DarkGrey</material>
-    <selfCollide>false</selfCollide>
-    <mu1 value="0.5"/>
-    <mu2 value="0.5"/>
-    <kp value="10000000.0"/>
-    <kd value="1"/>
-    <fdir1 value="1 0 0"/>
-  </gazebo>
   <joint name="rear_right_wheel" type="continuous">
     <parent link="chassis_link"/>
     <child link="rear_right_wheel_link"/>
@@ -408,12 +372,12 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="package://velodyne_description/meshes/VLP16_base_1.dae"/>
+        <mesh filename="../../velodyne_description/meshes/VLP16_base_1.dae"/>
       </geometry>
     </visual>
     <visual>
       <geometry>
-        <mesh filename="package://velodyne_description/meshes/VLP16_base_2.dae"/>
+        <mesh filename="../../velodyne_description/meshes/VLP16_base_2.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -437,51 +401,10 @@
     <visual>
       <origin xyz="0 0 -0.0377"/>
       <geometry>
-        <mesh filename="package://velodyne_description/meshes/VLP16_scan.dae"/>
+        <mesh filename="../../velodyne_description/meshes/VLP16_scan.dae"/>
       </geometry>
     </visual>
   </link>
-  <!-- Gazebo requires the velodyne_gazebo_plugins package -->
-  <gazebo reference="velodyne">
-    <sensor name="velodyne-VLP16" type="ray">
-      <pose>0 0 0 0 0 0</pose>
-      <visualize>false</visualize>
-      <update_rate>10</update_rate>
-      <ray>
-        <scan>
-          <horizontal>
-            <samples>1875</samples>
-            <resolution>1</resolution>
-            <min_angle>-3.141592653589793</min_angle>
-            <max_angle>3.141592653589793</max_angle>
-          </horizontal>
-          <vertical>
-            <samples>16</samples>
-            <resolution>1</resolution>
-            <min_angle>-0.2617993877991494</min_angle>
-            <max_angle> 0.2617993877991494</max_angle>
-          </vertical>
-        </scan>
-        <range>
-          <min>0.3</min>
-          <max>131.0</max>
-          <resolution>0.001</resolution>
-        </range>
-        <noise>
-          <type>gaussian</type>
-          <mean>0.0</mean>
-          <stddev>0.0</stddev>
-        </noise>
-      </ray>
-      <plugin filename="libgazebo_ros_velodyne_laser.so" name="gazebo_ros_laser_controller">
-        <topicName>velodyne/mid/points</topicName>
-        <frameName>vehicle/velodyne</frameName>
-        <min_range>0.9</min_range>
-        <max_range>130.0</max_range>
-        <gaussianNoise>0.008</gaussianNoise>
-      </plugin>
-    </sensor>
-  </gazebo>
   <!-- 
     Add Cameras. 
     - JACKAL_FLEA3

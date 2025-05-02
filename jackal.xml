@@ -15,24 +15,24 @@
       <!-- Visualize the robot body -->
 
       <!-- 4 wheels -->
-      <body name="front_left_wheel" pos="0.2 0.15 0">
+      <body name="front_left_wheel" pos="0.2 0.15 0.05">
         <joint name="front_left_wheel_joint" type="hinge" axis="0 1 0"/>
-        <geom type="cylinder" size="0.05 0.02" rgba="0.1 0.1 0.1 1"/>
+        <geom type="cylinder" size="0.05 0.02" rgba="0.1 0.1 0.1 1" euler="0 90 0"/>
       </body>
 
-      <body name="front_right_wheel" pos="0.2 -0.15 0">
+      <body name="front_right_wheel" pos="0.2 -0.15 0.05">
         <joint name="front_right_wheel_joint" type="hinge" axis="0 1 0"/>
-        <geom type="cylinder" size="0.05 0.02" rgba="0.1 0.1 0.1 1"/>
+        <geom type="cylinder" size="0.05 0.02" rgba="0.1 0.1 0.1 1" euler="0 90 0"/>
       </body>
 
-      <body name="rear_left_wheel" pos="-0.2 0.15 0">
+      <body name="rear_left_wheel" pos="-0.2 0.15 0.05">
         <joint name="rear_left_wheel_joint" type="hinge" axis="0 1 0"/>
-        <geom type="cylinder" size="0.05 0.02" rgba="0.1 0.1 0.1 1"/>
+        <geom type="cylinder" size="0.05 0.02" rgba="0.1 0.1 0.1 1" euler="0 90 0"/>
       </body>
 
-      <body name="rear_right_wheel" pos="-0.2 -0.15 0">
+      <body name="rear_right_wheel" pos="-0.2 -0.15 0.05">
         <joint name="rear_right_wheel_joint" type="hinge" axis="0 1 0"/>
-        <geom type="cylinder" size="0.05 0.02" rgba="0.1 0.1 0.1 1"/>
+        <geom type="cylinder" size="0.05 0.02" rgba="0.1 0.1 0.1 1" euler="0 90 0"/>
       </body>
 
       <!-- Velodyne lidar mount -->

@@ -4,10 +4,23 @@ import time
 import mujoco
 
 env = Jackal_Env(
-    xml_file="jackal.xml",
-    render_mode="human")
+    xml_file="jackal_velodyne.xml",
+    render_mode="human"
+)
 
-env.render()
+TOTAL_TIME = 60  # seconds
+STEP_TIME = 0.01  # seconds
+ITERS_FROM_TIME = int(TOTAL_TIME / STEP_TIME)
+
+for _ in range(ITERS_FROM_TIME):
+    try:
+        env.render()
+        time.sleep(STEP_TIME)
+    except Exception as e:
+        print(f"Error: {e}")
+        break
+env.close()
+
 
 # observation = env.reset()
 # for _ in range(1000):

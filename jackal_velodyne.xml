@@ -23,6 +23,13 @@
         <mesh name="vlp16_base_2" file="VLP16_base_2.stl" />
         <mesh name="vlp16_scan" file="VLP16_scan.stl" />
     </asset>
+
+    <equality>
+        <!-- Left side wheels move together -->
+        <joint joint1="front_left_wheel" joint2="rear_left_wheel"/>
+        <!-- Right side wheels move together -->
+        <joint joint1="front_right_wheel" joint2="rear_right_wheel"/>
+    </equality>
     
     <worldbody>
         <!-- Add a floor/plane -->
@@ -133,8 +140,10 @@
     </worldbody>
     
     <actuator>
-        <motor name="front_left_actuator" joint="front_left_wheel" gear="20" ctrlrange="-1 1" />
-        <motor name="front_right_actuator" joint="front_right_wheel" gear="20" ctrlrange="-1 1" />
+        <!-- Keep all four actuators, but we'll only need to control two -->
+        <motor name="left_actuator" joint="front_left_wheel" gear="20" ctrlrange="-1 1" />
+        <motor name="right_actuator" joint="front_right_wheel" gear="20" ctrlrange="-1 1" />
+        <!-- These actuators won't need direct control due to the equality constraints -->
         <motor name="rear_left_actuator" joint="rear_left_wheel" gear="20" ctrlrange="-1 1" />
         <motor name="rear_right_actuator" joint="rear_right_wheel" gear="20" ctrlrange="-1 1" />
     </actuator>

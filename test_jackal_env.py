@@ -20,18 +20,17 @@ def time_to_iters(seconds: float) -> int:
 # wait 5 seconds so I can start recording :)
 for _ in range(time_to_iters(5)):
     observation = env.reset()
-    action = [0, 0, 0, 0]  # All wheels stopped
-    observation, reward, terminated, truncated = env.step(action)
+    action = [0, 0]  # All wheels stopped
+    observation, reward, terminated, truncated, info = env.step(action)
     env.render()
     time.sleep(0.01)
 
 # Drive forward for a few seconds
 observation = env.reset()
 for _ in range(ITERS_FROM_TIME):
-    # [left_front, right_front, left_rear, right_rear]
-    action = [0.5, 0.5, 0.5, 0.5]  # All wheels forward at half speed
-    # Wheels in action are in the order: [left_front, right_front, left_rear, right_rear]
-    observation, reward, terminated, truncated = env.step(action)
+    # [left_speed, right_speed]
+    action = [0.5, 0.5]  # All wheels forward at half speed
+    observation, reward, terminated, truncated, info = env.step(action)
     env.render()
     time.sleep(0.01)
 

@@ -29,7 +29,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="${PI/2} 0 0"/>
         <geometry>
-          <mesh filename="package://jackal_description/meshes/jackal-wheel.stl"/>
+          <mesh filename="../meshes/jackal-wheel.stl"/>
         </geometry>
         <material name="black" />
       </visual>
@@ -104,7 +104,7 @@
     <visual>
       <origin xyz="0 0 ${footprint_vertical_offset}" rpy="${PI/2} 0 ${PI/2}"/>
       <geometry>
-        <mesh filename="package://jackal_description/meshes/jackal-base.stl"/>
+        <mesh filename="../meshes/jackal-base.stl"/>
       </geometry>
       <material name="dark_grey" />
     </visual>
@@ -130,7 +130,7 @@
     <link name="front_fender_link">
       <visual>
         <geometry>
-          <mesh filename="package://jackal_description/meshes/jackal-fender.stl"/>
+          <mesh filename="../meshes/jackal-fender.stl"/>
         </geometry>
         <material name="yellow" />
       </visual>
@@ -141,7 +141,7 @@
     <link name="front_fender_link">
       <visual>
         <geometry>
-          <mesh filename="package://jackal_description/meshes/accessory_fender.stl"/>
+          <mesh filename="../meshes/accessory_fender.stl"/>
         </geometry>
         <material name="yellow" />
       </visual>
@@ -165,7 +165,7 @@
     <link name="rear_fender_link">
       <visual>
         <geometry>
-          <mesh filename="package://jackal_description/meshes/jackal-fender.stl"/>
+          <mesh filename="../meshes/jackal-fender.stl"/>
         </geometry>
         <material name="yellow" />
       </visual>
@@ -176,7 +176,7 @@
     <link name="rear_fender_link">
       <visual>
         <geometry>
-          <mesh filename="package://jackal_description/meshes/accessory_fender.stl"/>
+          <mesh filename="../meshes/accessory_fender.stl"/>
         </geometry>
         <material name="yellow" />
       </visual>
@@ -247,22 +247,22 @@
   </joint>
 
   <!-- Bring in simulation data for Gazebo. -->
-  <xacro:include filename="$(find jackal_description)/urdf/jackal.gazebo" />
+  <!-- <xacro:include filename="jackal.gazebo" /> -->
 
   <!-- Optional standard accessories, including their simulation data. The rendering
        of these into the final description is controlled by optenv variables, which
        default each one to off.-->
-  <xacro:include filename="$(find jackal_description)/urdf/accessories.urdf.xacro" />
+  <xacro:include filename="accessories.urdf.xacro" />
 
   <!-- OutdoorNav -->
   <xacro:arg name="outdoornav_enabled"       default="$(optenv OUTDOORNAV_ENABLED 0)" />
   <xacro:arg name="outdoornav_configuration" default="$(optenv OUTDOORNAV_CONFIGURATION standard)" />
 
-  <!-- OutdoorNav URDF Config -->
+  <!-- OutdoorNav URDF Config
   <xacro:if value="$(arg outdoornav_enabled)">
     <xacro:include filename="$(find cpr_onav_description)/urdf/outdoornav_description.urdf.xacro" />
     <xacro:outdoornav_sensors outdoornav_configuration="$(arg outdoornav_configuration)" />
-  </xacro:if>
+  </xacro:if> -->
 
   <!-- Optional custom includes. -->
   <xacro:include filename="$(optenv JACKAL_URDF_EXTRAS empty.urdf)" />

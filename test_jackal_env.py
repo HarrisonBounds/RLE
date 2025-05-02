@@ -30,6 +30,7 @@ observation = env.reset()
 for _ in range(ITERS_FROM_TIME):
     # [left_front, right_front, left_rear, right_rear]
     action = [0.5, 0.5, 0.5, 0.5]  # All wheels forward at half speed
+    # Wheels in action are in the order: [left_front, right_front, left_rear, right_rear]
     observation, reward, terminated, truncated = env.step(action)
     env.render()
     time.sleep(0.01)

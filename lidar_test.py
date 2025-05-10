@@ -13,6 +13,12 @@ def test_vlp16_lidar():
     print("Loading MuJoCo model...")
     model = mujoco.MjModel.from_xml_path("jackal_obstacles.xml")
     data = mujoco.MjData(model)
+
+    # Reset the simulation
+    mujoco.mj_resetData(model, data)
+
+    # Initialize viewer
+    print("Initializing viewer...")
     viewer = mujoco.viewer.launch_passive(model, data)
 
     # Initialize the VLP-16 sensor
@@ -26,9 +32,6 @@ def test_vlp16_lidar():
         max_range=100.0            # meters
     )
 
-    # Reset the simulation
-    mujoco.mj_resetData(model, data)
-
     print("\nStarting simulation...")
     print("Press Ctrl+C to stop the simulation\n")
 
@@ -38,10 +41,7 @@ def test_vlp16_lidar():
 
     try:
         for i in range(1000):
-            # Step the simulation
-            mujoco.mj_step(model, data)
-
-            # Control the robot (simple movement patterns)
+            # Set control signals BEFORE stepping
             if i < 200:
                 # Move forward
                 ctrl = [0.5, 0.5]  # [left, right] wheel velocities
@@ -58,14 +58,23 @@ def test_vlp16_lidar():
                 # Move forward
                 ctrl = [0.5, 0.5]
 
-            # Set control signals for differential drive
+            # Apply control signals
             data.ctrl[0] = ctrl[0]  # Left wheels
             data.ctrl[1] = ctrl[1]  # Right wheels
+
+            # Step the simulation AFTER setting controls
+            mujoco.mj_step(model, data)
+
+            # CRITICAL: Update the viewer to show movement
+            if viewer.is_running():
+                viewer.sync()
+            else:
+                break  # Exit if viewer is closed
 
             # Update the LiDAR (casting all rays each frame)
             scan_result = lidar.update()
 
-            # Print data periodically (every 1 second) to avoid overwhelming the terminal
+            # Print data periodically (every 1 second)
             current_time = time.time()
             if current_time - last_print_time > 1.0:
                 # Get scan statistics
@@ -74,6 +83,9 @@ def test_vlp16_lidar():
                 # Print information
                 print(f"\n--- Step {i} ---")
                 print(f"Robot position: {data.qpos[:3]}")
+                # Added velocity info
+                print(f"Robot velocity: {data.qvel[:3]}")
+                print(f"Control signals: left={ctrl[0]}, right={ctrl[1]}")
                 print(f"LiDAR position: {scan_result['lidar_position']}")
                 print(f"Number of rays: {stats['total_rays']}")
                 print(
@@ -100,15 +112,18 @@ def test_vlp16_lidar():
                 lidar.save_point_cloud_ply("vlp16_point_cloud.ply")
                 print("\nSaved point cloud to vlp16_point_cloud.ply")
 
-            # Control simulation speed to run at a reasonable rate
-            elapsed = time.time() - start_time
-            time_to_sleep = max(0, model.opt.timestep - elapsed)
+            # Control simulation speed (sleep to maintain real-time factor)
+            time_to_sleep = max(0, model.opt.timestep -
+                                (time.time() - start_time))
             if time_to_sleep > 0:
                 time.sleep(time_to_sleep)
             start_time = time.time()
 
     except KeyboardInterrupt:
         print("\nSimulation stopped by user")
+    finally:
+        # Make sure to close the viewer
+        viewer.close()
 
     print("\nSimulation complete")
 

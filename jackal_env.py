@@ -5,7 +5,7 @@ import mujoco
 import mujoco.viewer
 import matplotlib.pyplot as plt
 import time
-from lidar_sensor import LidarSensor
+from lidar_sensor import VLP16Sensor
 
 
 class Jackal_Env(gym.Env):
@@ -23,16 +23,15 @@ class Jackal_Env(gym.Env):
         # LiDAR configuration
         self.use_lidar = use_lidar
         if self.use_lidar:
-            self.lidar = LidarSensor(
+            self.lidar = VLP16Sensor(
                 self.model,
                 self.data,
                 lidar_name="velodyne",
-                num_rays_h=num_lidar_rays_h,
-                num_rays_v=num_lidar_rays_v,
-                max_range=lidar_max_range
+                horizontal_resolution=360.0/num_lidar_rays_h,  # Convert ray count to degrees
+                rotation_rate=10,  # Hz
+                max_range=lidar_max_range,
+                return_type='ranges'  # Just return ranges for the gym environment
             )
-            self.lidar_viz_enabled = False
-            self.lidar_ax = None
 
         # Define state (observation) and action spaces
         basic_obs_size = self.model.nq + self.model.nv  # joint positions + velocities

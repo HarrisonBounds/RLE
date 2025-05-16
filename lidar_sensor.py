@@ -48,13 +48,8 @@ class VLP16Sensor:
         self.v_angles = np.radians(vlp16_v_angles)
 
         # Find the LiDAR body ID
-        try:
-            self.lidar_id = mujoco.mj_name2id(
-                model, mujoco.mjtObj.mjOBJ_BODY, lidar_name)
-        except AttributeError:
-            # Fall back for older MuJoCo versions
-            self.lidar_id = mujoco.mj_name2id(
-                model, 1, lidar_name)  # 1 is body type
+        self.lidar_id = mujoco.mj_name2id(
+            model, mujoco.mjtObj.mjOBJ_BODY, lidar_name)
 
         if self.lidar_id < 0:
             raise ValueError(
@@ -103,31 +98,16 @@ class VLP16Sensor:
                 # Initialize output arrays for raycasting
                 ray_geom = np.zeros(1, dtype=np.int32)
 
-                try:
-                    # Try the newer MuJoCo API first
-                    ray_dist = mujoco.mj_ray(
-                        self.model,
-                        self.data,
-                        lidar_pos,          # Start position
-                        ray_dir_world,      # Direction
-                        None,               # No specific geom group to collide with
-                        1,                  # Collision with all geoms
-                        -1,                 # Ignore the body of the robot itself
-                        ray_geom            # Output: geom that was hit
-                    )
-                except (TypeError, AttributeError):
-                    # Fall back to older API format if needed
-                    ray_dist = mujoco.mj_ray(
-                        self.model,
-                        self.data,
-                        # Start position components
-                        lidar_pos[0], lidar_pos[1], lidar_pos[2],
-                        # Direction components
-                        ray_dir_world[0], ray_dir_world[1], ray_dir_world[2],
-                        1,                  # Collision with all geoms
-                        -1,                 # Ignore the body of the robot itself
-                        ray_geom            # Output: geom that was hit
-                    )
+                ray_dist = mujoco.mj_ray(
+                    self.model,
+                    self.data,
+                    lidar_pos,          # Start position
+                    ray_dir_world,      # Direction
+                    None,               # No specific geom group to collide with
+                    1,                  # Collision with all geoms
+                    -1,                 # Ignore the body of the robot itself
+                    ray_geom            # Output: geom that was hit
+                )
 
                 # Store the range and compute hit point
                 if ray_geom[0] >= 0 and ray_dist < self.max_range:  # If ray hit something
@@ -174,58 +154,3 @@ class VLP16Sensor:
         else:
             # Return all points
             return self.points.reshape(-1, 3)
-
-    def save_point_cloud_ply(self, filename):
-        """
-        Save the current point cloud to a PLY file.
-
-        Args:
-            filename: Output filename
-        """
-        points = self.get_point_cloud(filter_max_range=True)
-
-        if len(points) == 0:
-            print("No valid points to save")
-            return
-
-        with open(filename, 'w') as f:
-            # Write PLY header
-            f.write("ply\n")
-            f.write("format ascii 1.0\n")
-            f.write(f"element vertex {len(points)}\n")
-            f.write("property float x\n")
-            f.write("property float y\n")
-            f.write("property float z\n")
-            f.write("end_header\n")
-
-            # Write points
-            for point in points:
-                f.write(f"{point[0]} {point[1]} {point[2]}\n")
-
-        print(f"Saved point cloud with {len(points)} points to {filename}")
-
-    def get_statistics(self):
-        """Return statistics about the current scan"""
-        # Count valid points (not at max range)
-        valid_mask = self.ranges < self.max_range
-        num_valid_points = np.sum(valid_mask)
-
-        # Calculate distance statistics for valid points
-        if num_valid_points > 0:
-            valid_ranges = self.ranges[valid_mask]
-            min_dist = np.min(valid_ranges)
-            max_dist = np.max(valid_ranges)
-            mean_dist = np.mean(valid_ranges)
-            std_dist = np.std(valid_ranges)
-        else:
-            min_dist = max_dist = mean_dist = std_dist = 0
-
-        return {
-            'total_rays': self.num_rays_v * self.num_rays_h,
-            'valid_points': num_valid_points,
-            'hit_percentage': (num_valid_points / (self.num_rays_v * self.num_rays_h)) * 100,
-            'min_distance': min_dist,
-            'max_distance': max_dist,
-            'mean_distance': mean_dist,
-            'std_distance': std_dist
-        }

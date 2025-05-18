@@ -68,3 +68,75 @@ class ReplayBuffer:
         self.dones = []
         self.log_probs = []
 
+
+def ppo_update(actor, critic, optimizer_actor, optimizer_critic, batch, clip_param, ppo_epochs, mini_batch_size, gamma, gae_lambda):
+    states = batch['states']
+    actions = batch['actions']
+    rewards = batch['rewards']
+    next_states = batch['next_states']
+    dones = batch['dones']
+    old_log_probs = batch['log_probs'] #get old log probs
+
+    # Calculate Advantages and Returns (GAE)
+    values = critic(states).squeeze()
+    next_values = critic(next_states).squeeze()
+    advantages = torch.zeros_like(rewards)
+    returns = torch.zeros_like(rewards)
+    lastgaelam = 0
+    for t in reversed(range(rewards.size(0))):
+        if t == rewards.size(0) - 1:
+            nextnonterminal = 1.0 - dones[t]
+            next_value = next_values[t]
+        else:
+            nextnonterminal = 1.0 - dones[t]
+            next_value = values[t + 1]
+        delta = rewards[t] + gamma * next_value * nextnonterminal - values[t]
+        advantages[t] = lastgaelam = delta + gamma * gae_lambda * nextnonterminal * lastgaelam
+        returns[t] = rewards[t] + gamma * next_value * nextnonterminal
+
+
+    # Normalize advantages
+    advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+    #convert to tensors
+    returns = returns.detach()
+
+    for _ in range(ppo_epochs): #ppo epochs
+        # Mini-batch iteration
+        for index in range(0, states.size(0), mini_batch_size):
+            #get mini batch
+            state_batch = states[index: index + mini_batch_size]
+            action_batch = actions[index: index + mini_batch_size]
+            adv_batch = advantages[index: index + mini_batch_size]
+            return_batch = returns[index: index + mini_batch_size]
+            old_log_prob_batch = old_log_probs[index: index + mini_batch_size]
+
+            #get new action log probs
+            action_mean, action_std = actor(state_batch)
+            dist = torch.distributions.Normal(action_mean, action_std)
+            new_log_probs = dist.log_prob(action_batch).sum(dim=-1)
+
+            # Calculate probability ratio
+            ratio = torch.exp(new_log_probs - old_log_prob_batch)
+
+            # Clipped objective
+            surr1 = ratio * adv_batch
+            surr2 = torch.clamp(ratio, 1 - clip_param, 1 + clip_param) * adv_batch
+            actor_loss = -torch.min(surr1, surr2).mean()
+
+            # Value function loss
+            value_pred = critic(state_batch).squeeze()
+            critic_loss = F.mse_loss(value_pred, return_batch).mean()
+
+            # Optimize actor
+            optimizer_actor.zero_grad()
+            actor_loss.backward()
+            optimizer_actor.step()
+
+            # Optimize critic
+            optimizer_critic.zero_grad()
+            critic_loss.backward()
+            optimizer_critic.step()
+
+
+

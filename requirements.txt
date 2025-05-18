@@ -1,3 +1,4 @@
 mujoco
 gymnasium
 torch
+matplotlib

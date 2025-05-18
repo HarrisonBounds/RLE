@@ -116,6 +116,7 @@ def ppo_update(actor, critic, optimizer_actor, optimizer_critic, batch, clip_par
             dist = torch.distributions.Normal(action_mean, action_std)
             new_log_probs = dist.log_prob(action_batch).sum(dim=-1)
 
+
             # Calculate probability ratio
             ratio = torch.exp(new_log_probs - old_log_prob_batch)
 
@@ -123,6 +124,7 @@ def ppo_update(actor, critic, optimizer_actor, optimizer_critic, batch, clip_par
             surr1 = ratio * adv_batch
             surr2 = torch.clamp(ratio, 1 - clip_param, 1 + clip_param) * adv_batch
             actor_loss = -torch.min(surr1, surr2).mean()
+
 
             # Value function loss
             value_pred = critic(state_batch).squeeze()

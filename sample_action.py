@@ -1,7 +1,6 @@
 import gymnasium as gym
 from jackal_env import Jackal_Env
 import time
-import mujoco
 
 env = Jackal_Env(render_mode="human")
 

@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.distributions import Normal
 import numpy as np
 
 class Actor(nn.Module):
@@ -69,76 +70,60 @@ class ReplayBuffer:
         self.log_probs = []
 
 
-def ppo_update(actor, critic, optimizer_actor, optimizer_critic, batch, clip_param, ppo_epochs, mini_batch_size, gamma, gae_lambda):
-    states = batch['states']
-    actions = batch['actions']
-    rewards = batch['rewards']
-    next_states = batch['next_states']
-    dones = batch['dones']
-    old_log_probs = batch['log_probs'] #get old log probs
-
-    # Calculate Advantages and Returns (GAE)
-    values = critic(states).squeeze()
-    next_values = critic(next_states).squeeze()
-    advantages = torch.zeros_like(rewards)
-    returns = torch.zeros_like(rewards)
-    lastgaelam = 0
-    for t in reversed(range(rewards.size(0))):
-        if t == rewards.size(0) - 1:
-            nextnonterminal = 1.0 - dones[t]
-            next_value = next_values[t]
-        else:
-            nextnonterminal = 1.0 - dones[t]
-            next_value = values[t + 1]
-        delta = rewards[t] + gamma * next_value * nextnonterminal - values[t]
-        advantages[t] = lastgaelam = delta + gamma * gae_lambda * nextnonterminal * lastgaelam
-        returns[t] = rewards[t] + gamma * next_value * nextnonterminal
 
 
-    # Normalize advantages
-    advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+class PPOAgent:
+    def __init__(self, state_dim, action_dim, lr_actor=3e-4, lr_critic=3e-4, gamma=0.99,
+                 epsilon_clip=0.2, K_epochs=10, entropy_coef=0.01):
+        
+        self.gamma = gamma
+        self.epsilon_clip = epsilon_clip
+        self.K_epochs = K_epochs
+        self.entropy_coef = entropy_coef
 
-    #convert to tensors
-    returns = returns.detach()
+        self.actor = Actor(state_dim, action_dim)
+        self.critic = Critic(state_dim)
+        self.optimizer_actor = optim.Adam(self.actor.parameters(), lr=lr_actor)
+        self.optimizer_critic = optim.Adam(self.critic.parameters(), lr=lr_critic)
 
-    for _ in range(ppo_epochs): #ppo epochs
-        # Mini-batch iteration
-        for index in range(0, states.size(0), mini_batch_size):
-            #get mini batch
-            state_batch = states[index: index + mini_batch_size]
-            action_batch = actions[index: index + mini_batch_size]
-            adv_batch = advantages[index: index + mini_batch_size]
-            return_batch = returns[index: index + mini_batch_size]
-            old_log_prob_batch = old_log_probs[index: index + mini_batch_size]
+        self.buffer = ReplayBuffer()
 
-            #get new action log probs
-            action_mean, action_std = actor(state_batch)
-            dist = torch.distributions.Normal(action_mean, action_std)
-            new_log_probs = dist.log_prob(action_batch).sum(dim=-1)
+    def select_action(self, observation):
+        
+        state_data = observation['state'].flatten()
+        lidar_data = observation['lidar'].flatten()
+        processed_state = np.concatenate([state_data, lidar_data])
 
+        state_tensor = torch.tensor(processed_state, dtype=torch.float32).unsqueeze(0)
 
-            # Calculate probability ratio
-            ratio = torch.exp(new_log_probs - old_log_prob_batch)
+        #Forward Pass
+        with torch.no_grad(): 
+            action_mean, action_std = self.actor(state_tensor)
+        
+        #Create normal distribution and sample from it
+        dist = Normal(action_mean, action_std)
+        action = dist.sample()
+        log_prob = dist.log_prob(action).sum(axis=-1)
 
-            # Clipped objective
-            surr1 = ratio * adv_batch
-            surr2 = torch.clamp(ratio, 1 - clip_param, 1 + clip_param) * adv_batch
-            actor_loss = -torch.min(surr1, surr2).mean()
+        return action.squeeze(0).numpy(), log_prob.item()
 
+    def compute_advantages_and_returns(self, rewards, values, dones):
+        
+        # This will involve iterating backwards through the collected trajectory
+        # to calculate advantages and returns.
+        pass
 
-            # Value function loss
-            value_pred = critic(state_batch).squeeze()
-            critic_loss = F.mse_loss(value_pred, return_batch).mean()
+    def update(self):
+       
+        # This method will involve:
+        # 1. Getting a batch of data from the buffer.
+        # 2. Computing advantages and returns.
+        # 3. Iterating K_epochs times to update actor and critic.
+        # 4. Calculating the PPO loss for the actor (clipped objective + entropy).
+        # 5. Calculating the loss for the critic (MSE loss).
+        # 6. Performing backpropagation and optimization steps.
+        pass
 
-            # Optimize actor
-            optimizer_actor.zero_grad()
-            actor_loss.backward()
-            optimizer_actor.step()
-
-            # Optimize critic
-            optimizer_critic.zero_grad()
-            critic_loss.backward()
-            optimizer_critic.step()
 
 
 

@@ -1,6 +1,6 @@
 <mujoco model="jackal">
     <compiler angle="radian" meshdir="mujoco_meshes/" />
-    <option timestep="0.002" integrator="RK4" gravity="0 0 -9.81"/>
+    <option timestep="0.01" integrator="RK4" gravity="0 0 -9.81"/>
     <size nconmax="1000" njmax="5000" />
     
     <default>

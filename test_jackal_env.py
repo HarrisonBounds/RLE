@@ -23,18 +23,24 @@ for key, space in obs_space.spaces.items():
 action_dim = np.prod(action_space.shape)
 print(f"State dim: {state_dim}, Action Dim: {action_dim}")
 
-#Hardcoded State Dim and Action Dim
-# state_dim = 
-# action_dim = 2
+#Declare PPO Agent
+agent = PPOAgent(state_dim, action_dim)
 
+#Reset env
+observation, info = env.reset()
 
-# #Declare PPO Agent
-# agent = PPOAgent(state_dim, action_dim)
 
 # Drive forward
 while True:
-    action = [0.5, 0.5]  # All wheels forward at half speed
-    observation, reward, terminated, truncated, info = env.step(action)
+    action, log_prob = agent.select_action(observation)
+    new_observation, reward, terminated, truncated, info = env.step(action)
+
+    observation = new_observation
+
+    if terminated or truncated:
+        break
 
     env.render()
+
+env.close()
 

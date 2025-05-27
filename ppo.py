@@ -2,7 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+<<<<<<< HEAD
 from torch.distributions import Normal
+=======
+>>>>>>> origin/feat/ppo
 import numpy as np
 
 class Actor(nn.Module):

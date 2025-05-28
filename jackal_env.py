@@ -72,7 +72,7 @@ class Jackal_Env(gym.Env):
         
         #Read reward config
         with open('rewards.json', 'r') as file:
-            rewards = json.load(file)
+            self.rewards = json.load(file)
 
     def step(self, action):
 
@@ -103,6 +103,28 @@ class Jackal_Env(gym.Env):
         truncated = False
         info = {}
 
+        forward_velocity = self.data.qvel[0]
+        reward += self.rewards["forward_veloccity"] * np.clip(forward_velocity, 0, None)
+
+        angular_velocity = np.linalg.norm(self.data.qvel[3:6])
+        reward += self.rewards["angular_velocity"] * angular_velocity
+
+        if self.use_lidar:
+            if lidar_obs.size > 0 and np.isfinite(lidar_obs).any():
+                min_lidar_distance = np.min(lidar_obs[np.isfinite(lidar_obs)]) 
+                if min_lidar_distance < self.rewards["min_lidar_dist"]:
+                    proximity_penalty = self.rewards["lidar_proximity"] * \
+                                        (1 - min_lidar_distance / self.min_lidar_dist_threshold)
+                    reward += proximity_penalty
+            else:
+                min_lidar_distance = self.lidar.max_range
+
+        if self.data.ncon > 0:
+            reward += self.rewards["collision"]
+            terminated = True
+
+        reward += self.rewards["time_step"]
+        
         return observation, reward, terminated, truncated, info
 
 

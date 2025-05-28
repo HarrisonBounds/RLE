@@ -77,12 +77,13 @@ class ReplayBuffer:
 
 class PPOAgent:
     def __init__(self, state_dim, action_dim, lr_actor=3e-4, lr_critic=3e-4, gamma=0.99,
-                 epsilon_clip=0.2, K_epochs=10, entropy_coef=0.01):
+                 epsilon_clip=0.2, K_epochs=10, entropy_coef=0.01, gae_lambda=0.95):
         
         self.gamma = gamma
         self.epsilon_clip = epsilon_clip
         self.K_epochs = K_epochs
         self.entropy_coef = entropy_coef
+        self.gae_lambda = gae_lambda
 
         self.actor = Actor(state_dim, action_dim)
         self.critic = Critic(state_dim)
@@ -110,11 +111,35 @@ class PPOAgent:
 
         return action.squeeze(0).numpy(), log_prob.item()
 
-    def compute_advantages_and_returns(self, rewards, values, dones):
-        
-        # This will involve iterating backwards through the collected trajectory
-        # to calculate advantages and returns.
-        pass
+    def compute_advantages_and_returns(self, rewards, values, next_values dones):
+        #Squeeze out the batch dimension
+        values = values.squeeze()
+        next_values = next_values.squeeze()
+
+        #TD Errors
+        deltas = rewards + self.gamma * next_values * (1 - dones) - values
+
+        advantages = torch.zeros_like(rewards)
+        returns = torch.zeros_like(values)
+
+        last_advantage = 0
+        last_return = 0
+
+        for t in reversed(range(len(rewards))):
+            if dones[t]:
+                last_advantage = 0
+                last_return = 0
+
+            advantages[t] = deltas[t] + self.gamma * self.gae_lambda * last_advantage
+            last_advantage = advantages[t]
+
+            returns[t] = rewards[t] + self.gamma * last_return
+            last_return = returns[t]
+
+        # Normalize advantages
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+        return advantages.unsqueeze(1), returns.unsqueeze(1)
 
     def update(self):
        

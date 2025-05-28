@@ -2,10 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-<<<<<<< HEAD
 from torch.distributions import Normal
-=======
->>>>>>> origin/feat/ppo
 import numpy as np
 
 class Actor(nn.Module):
@@ -72,9 +69,6 @@ class ReplayBuffer:
         self.dones = []
         self.log_probs = []
 
-
-
-
 class PPOAgent:
     def __init__(self, state_dim, action_dim, lr_actor=3e-4, lr_critic=3e-4, gamma=0.99,
                  epsilon_clip=0.2, K_epochs=10, entropy_coef=0.01, gae_lambda=0.95):
@@ -111,10 +105,10 @@ class PPOAgent:
 
         return action.squeeze(0).numpy(), log_prob.item()
 
-    def compute_advantages_and_returns(self, rewards, values, next_values dones):
+    def compute_advantages_and_returns(self, rewards, values, next_values, dones):
         #Squeeze out the batch dimension
-        values = values.squeeze()
-        next_values = next_values.squeeze()
+        values = values.flatten()
+        next_values = next_values.flatten()
 
         #TD Errors
         deltas = rewards + self.gamma * next_values * (1 - dones) - values

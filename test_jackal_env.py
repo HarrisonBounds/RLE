@@ -4,6 +4,7 @@ import time
 import mujoco
 from ppo import PPOAgent
 import numpy as np
+import torch
 
 #Set up Env
 env = Jackal_Env(
@@ -29,18 +30,78 @@ agent = PPOAgent(state_dim, action_dim)
 #Reset env
 observation, info = env.reset()
 
+total_steps = 256 
+current_steps = 0
 
-# Drive forward
+episode_reward = 0
+episode_steps = 0
+terminated_episode = False
+truncated_episode = False
+done_flag = False
+
+#Drive forward
 while True:
+    #Select action and take environment step
     action, log_prob = agent.select_action(observation)
     new_observation, reward, terminated, truncated, info = env.step(action)
 
-    observation = new_observation
+    #Gather state information
+    current_processed_state = np.concatenate([observation['state'].flatten(), observation['lidar'].flatten()])
+    new_processed_state = np.concatenate([new_observation['state'].flatten(), new_observation['lidar'].flatten()])
 
     if terminated or truncated:
+        done = True
         break
 
+    #Store experience
+    agent.buffer.store(
+        current_processed_state,
+        action,
+        reward,
+        new_processed_state,
+        done_flag,
+        log_prob
+    )
+
+    #Update env information
+    observation = new_observation
+    episode_reward += reward
+    episode_steps += 1
+    current_steps += 1
+
     env.render()
+
+    if current_steps >= total_steps:
+        #Get experience from buffer
+        batch = agent.buffer.get_batch()
+        states = batch['states']
+        rewards = batch['rewards']
+        next_states = batch['next_states']
+        dones = batch['dones']
+
+        with torch.no_grad():
+            values = agent.critic(states)
+            next_values = agent.critic(next_states)
+
+        #Compute Advantages and returns
+        advantages, returns = agent.compute_advantages_and_returns(rewards, values, next_values, dones)
+
+        print(f"Computed Advantages (first 5): {advantages[:5].squeeze().numpy()}")
+        print(f"Computed Returns (first 5): {returns[:5].squeeze().numpy()}")
+        print(f"Advantages shape: {advantages.shape}")
+        print(f"Returns shape: {returns.shape}")
+
+        current_steps = 0
+
+        if terminated or truncated:
+            terminated_episode = terminated
+            truncated_episode = truncated
+            print(f"Episode finished after {episode_steps} steps. Total Reward: {episode_reward:.2f}. Terminated: {terminated_episode}, Truncated: {truncated_episode}")
+
+            # Reset environment for a new episode
+            observation, info = env.reset()
+            episode_reward = 0
+            episode_steps = 0
 
 env.close()
 

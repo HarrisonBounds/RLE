@@ -86,6 +86,11 @@ class PPOAgent:
 
         self.buffer = ReplayBuffer()
 
+        #Set device to use gpu
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.actor.to(self.device)
+        self.critic.to(self.device)
+
     def select_action(self, observation):
         
         state_data = observation['state'].flatten()
@@ -136,15 +141,80 @@ class PPOAgent:
         return advantages.unsqueeze(1), returns.unsqueeze(1)
 
     def update(self):
-       
-        # This method will involve:
-        # 1. Getting a batch of data from the buffer.
-        # 2. Computing advantages and returns.
-        # 3. Iterating K_epochs times to update actor and critic.
-        # 4. Calculating the PPO loss for the actor (clipped objective + entropy).
-        # 5. Calculating the loss for the critic (MSE loss).
-        # 6. Performing backpropagation and optimization steps.
-        pass
+        #Get batch from replay buffer and clear buffer
+        batch = self.buffer.get_batch()
+
+        #Organize data
+        states = batch['states']
+        actions = batch['actions']
+        rewards = batch['rewards']
+        next_states = batch['next_states']
+        dones = batch['dones']
+        old_log_probs = batch['log_probs']
+
+        #Move tensors to GPU
+        states = states.to(self.device)
+        actions = actions.to(self.device)
+        rewards = rewards.to(self.device)
+        next_states = next_states.to(self.device)
+        dones = dones.to(self.device)
+        old_log_probs = old_log_probs.to(self.device)
+
+        #Compute current values with critic
+        with torch.no_grad(): 
+            values = self.critic(states).squeeze(1)
+            next_values = self.critic(next_states).squeeze(1)
+
+        #Ensure these are one dimensional
+        rewards = rewards.flatten() 
+        dones = dones.flatten()
+
+        #Calculate advantages and returns
+        advantages, returns = self.compute_advantages_and_returns(rewards, values, next_values, dones)
+
+        #Reshape log probabilities for element wise operations
+        old_log_probs = old_log_probs.unsqueeze(1)
+
+        for _ in range(self.K_epochs):
+            #Evaluate current policy on collected states
+            action_mean, action_std = self.actor(states)
+            dist = Normal(action_mean, action_std)
+            new_log_probs = dist.log_prob(actions).sum(axis=-1).unsqueeze(1)
+
+            #Calculate ration of probability of action under new policy vs old policy
+            ratio = torch.exp(new_log_probs - old_log_probs)
+
+            #Surrogate Objective Function (Loss Function)
+            surrogate1 = ratio * advantages
+            surrogate2 = torch.clamp(ratio, 1 - self.epsilon_clip, 1 + self.epsilon_clip)
+
+            #Actor
+            #Maximize the min of the two surrogates
+            actor_loss = -torch.min(surrogate1, surrogate2).mean()
+            #Encourage exploration with entropy bonus
+            entropy = dist.entropy().mean() 
+            actor_loss = actor_loss - self.entropy_coef * entropy
+
+            #Critic
+            current_values = self.critic(states)
+            critic_loss = F.mse_loss(current_values, returns)
+
+            #Update Actor
+            self.optimizer_actor.zero_grad()
+            actor_loss.backward()
+            self.optimizer_actor.step()
+
+            #Update Critic
+            self.optimizer_critic.zero_grad()
+            critic_loss.backward()
+            self.optimizer_critic.step()
+
+            print(f"Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}, Entropy: {entropy.item():.4f}")
+
+            
+
+
+    
 
 
 

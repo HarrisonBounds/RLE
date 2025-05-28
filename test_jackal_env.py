@@ -30,11 +30,13 @@ agent = PPOAgent(state_dim, action_dim)
 #Reset env
 observation, info = env.reset()
 
-total_steps = 256 
+total_steps = 2048 
 current_steps = 0
 
+max_episodes = 5
 episode_reward = 0
 episode_steps = 0
+episode_count = 0
 terminated_episode = False
 truncated_episode = False
 done_flag = False
@@ -72,32 +74,18 @@ while True:
     env.render()
 
     if current_steps >= total_steps:
-        #Get experience from buffer
-        batch = agent.buffer.get_batch()
-        states = batch['states']
-        rewards = batch['rewards']
-        next_states = batch['next_states']
-        dones = batch['dones']
-
-        with torch.no_grad():
-            values = agent.critic(states)
-            next_values = agent.critic(next_states)
-
-        #Compute Advantages and returns
-        advantages, returns = agent.compute_advantages_and_returns(rewards, values, next_values, dones)
-
-        print(f"Computed Advantages (first 5): {advantages[:5].squeeze().numpy()}")
-        print(f"Computed Returns (first 5): {returns[:5].squeeze().numpy()}")
-        print(f"Advantages shape: {advantages.shape}")
-        print(f"Returns shape: {returns.shape}")
+        #Update agent
+        agent.update()
 
         current_steps = 0
 
         if terminated or truncated:
-            terminated_episode = terminated
-            truncated_episode = truncated
-            print(f"Episode finished after {episode_steps} steps. Total Reward: {episode_reward:.2f}. Terminated: {terminated_episode}, Truncated: {truncated_episode}")
+            episode_count += 1
 
+            if episode_count >= max_episodes and current_steps == 0:
+                print(f"Reached max_episodes_for_test ({max_episodes}). Stopping.")
+                break
+            
             # Reset environment for a new episode
             observation, info = env.reset()
             episode_reward = 0

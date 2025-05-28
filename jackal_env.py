@@ -6,6 +6,7 @@ import mujoco.viewer
 import matplotlib.pyplot as plt
 import time
 from lidar_sensor import VLP16Sensor
+import json
 
 
 class Jackal_Env(gym.Env):
@@ -68,6 +69,10 @@ class Jackal_Env(gym.Env):
             self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "right_actuator")
         self.right_rear = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "rear_right_actuator")
+        
+        #Read reward config
+        with open('rewards.json', 'r') as file:
+            rewards = json.load(file)
 
     def step(self, action):
 

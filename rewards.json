@@ -1,0 +1,7 @@
+{
+    "forward_velocity": 1.0,
+    "angular_velocity": 0.2,
+    "collision": -10.0,
+    "min_lidar_dist": 0.5,
+    "time_step": -0.01
+}

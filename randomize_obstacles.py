@@ -277,9 +277,8 @@ def insert_obstacles_raw(obstacles, in_path, out_path):
         f.write(new_xml)
 
 
-# Example usage:
 if __name__ == "__main__":
-    NUM_OBSTACLES = 5
+    NUM_OBSTACLES = 10
     AREA_SIZE = (-5, -5, 5, 5)  # (minX, minY, maxX, maxY)
     random_obstacles = generate_random_obstacles(NUM_OBSTACLES, AREA_SIZE)
     NEW_FILE_PATH = "jackal_obstacles_randomized.xml"
@@ -288,4 +287,6 @@ if __name__ == "__main__":
         in_path=FILE_PATH,
         out_path=NEW_FILE_PATH
     )
-    print("Wrote randomized obstacles as raw text between markers.")
+    print(
+        f"Generated {NUM_OBSTACLES} random obstacles and saved to {NEW_FILE_PATH}"
+    )

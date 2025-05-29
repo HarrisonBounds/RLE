@@ -155,35 +155,35 @@
         </body>
     
         <!--START_OBSTACLES-->
-		<body name="obstacle1" pos="1.509 2.007 0.460">
-			<geom type="cylinder" size="0.47 0.92" material="obstacleColor" />
+		<body name="obstacle1" pos="-1.407 2.853 0.650">
+			<geom type="cylinder" size="0.81 1.30" material="obstacleColor" />
 		</body>
-		<body name="obstacle2" pos="2.699 2.982 0.630">
-			<geom type="sphere" size="0.63" material="obstacleColor" />
+		<body name="obstacle2" pos="2.237 0.594 0.685">
+			<geom type="cylinder" size="0.74 1.37" material="obstacleColor" />
 		</body>
-		<body name="obstacle3" pos="4.285 0.307 0.700">
-			<geom type="sphere" size="0.70" material="obstacleColor" />
+		<body name="obstacle3" pos="2.601 -3.657 0.930">
+			<geom type="sphere" size="0.93" material="obstacleColor" />
 		</body>
-		<body name="obstacle4" pos="-1.997 -2.258 0.490">
-			<geom type="cylinder" size="0.97 0.98" material="obstacleColor" />
+		<body name="obstacle4" pos="-4.117 1.353 0.180">
+			<geom type="cylinder" size="0.86 0.36" material="obstacleColor" />
 		</body>
-		<body name="obstacle5" pos="4.181 -4.173 0.940">
-			<geom type="cylinder" size="0.78 1.88" material="obstacleColor" />
+		<body name="obstacle5" pos="-5.328 -5.032 0.205">
+			<geom type="box" size="1.59 1.43 0.41" material="obstacleColor" />
 		</body>
-		<body name="obstacle6" pos="3.727 -4.320 0.220">
-			<geom type="box" size="1.92 1.69 0.44" material="obstacleColor" />
+		<body name="obstacle6" pos="0.526 0.428 0.125">
+			<geom type="box" size="1.95 1.92 0.25" material="obstacleColor" />
 		</body>
-		<body name="obstacle7" pos="-1.736 -4.127 0.375">
-			<geom type="box" size="1.62 0.88 0.75" material="obstacleColor" />
+		<body name="obstacle7" pos="-2.006 4.379 0.135">
+			<geom type="cylinder" size="0.69 0.27" material="obstacleColor" />
 		</body>
-		<body name="obstacle8" pos="2.692 -2.077 0.135">
-			<geom type="box" size="0.93 1.61 0.27" material="obstacleColor" />
+		<body name="obstacle8" pos="2.910 2.078 0.975">
+			<geom type="cylinder" size="0.69 1.95" material="obstacleColor" />
 		</body>
-		<body name="obstacle9" pos="-2.557 2.979 0.260">
-			<geom type="cylinder" size="0.39 0.52" material="obstacleColor" />
+		<body name="obstacle9" pos="-3.271 -3.014 0.605">
+			<geom type="box" size="2.00 1.76 1.21" material="obstacleColor" />
 		</body>
-		<body name="obstacle10" pos="-4.587 2.638 0.445">
-			<geom type="cylinder" size="0.66 0.89" material="obstacleColor" />
+		<body name="obstacle10" pos="-1.694 -5.347 0.705">
+			<geom type="cylinder" size="0.81 1.41" material="obstacleColor" />
 		</body>
 		<!--END_OBSTACLES-->
 

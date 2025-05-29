@@ -279,18 +279,24 @@ def insert_obstacles_raw(obstacles, in_path, out_path):
 
 
 if __name__ == "__main__":
-    start_time = time.perf_counter()
-    NUM_OBSTACLES = 10
-    AREA_SIZE = (-5, -5, 5, 5)  # (minX, minY, maxX, maxY)
-    random_obstacles = generate_random_obstacles(NUM_OBSTACLES, AREA_SIZE)
-    NEW_FILE_PATH = "jackal_obstacles_randomized.xml"
-    insert_obstacles_raw(
-        random_obstacles,
-        in_path=FILE_PATH,
-        out_path=NEW_FILE_PATH
-    )
-    elapsed = (time.perf_counter() - start_time) * 1000  # milliseconds
+    REPETITIONS = 500
+    avg_runtime = 0.0
+    for _ in range(REPETITIONS):
+        start_time = time.perf_counter()
+        NUM_OBSTACLES = 10
+        AREA_SIZE = (-5, -5, 5, 5)  # (minX, minY, maxX, maxY)
+        random_obstacles = generate_random_obstacles(NUM_OBSTACLES, AREA_SIZE)
+        NEW_FILE_PATH = "jackal_obstacles_randomized.xml"
+        insert_obstacles_raw(
+            random_obstacles,
+            in_path=FILE_PATH,
+            out_path=NEW_FILE_PATH
+        )
+        elapsed = (time.perf_counter() - start_time) * 1000  # milliseconds
+        avg_runtime += elapsed
+    avg_runtime /= REPETITIONS
     print(
         f"Generated {NUM_OBSTACLES} random obstacles and saved to {NEW_FILE_PATH}"
     )
-    print(f"Elapsed time: {elapsed:.3f} ms")
+    print(
+        f"Average elapsed time over {REPETITIONS} repetitions: {avg_runtime:.3f} ms")

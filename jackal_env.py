@@ -104,7 +104,7 @@ class Jackal_Env(gym.Env):
         info = {}
 
         forward_velocity = self.data.qvel[0]
-        reward += self.rewards["forward_veloccity"] * np.clip(forward_velocity, 0, None)
+        reward += self.rewards["forward_velocity"] * np.clip(forward_velocity, 0, None)
 
         angular_velocity = np.linalg.norm(self.data.qvel[3:6])
         reward += self.rewards["angular_velocity"] * angular_velocity

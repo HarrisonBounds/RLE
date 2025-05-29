@@ -5,6 +5,24 @@ import mujoco
 from ppo import PPOAgent
 import numpy as np
 import torch
+import os
+
+
+
+TOTAL_TIMESTEPS = 1_000_000   
+STEPS_PER_BATCH = 2048                
+
+# Logging & Saving
+LOG_INTERVAL_EPISODES = 10   # Log training progress every X episodes
+SAVE_MODEL_INTERVAL_STEPS = 100000 # Save model every X total timesteps
+MODEL_DIR = "./models"
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+# Device configuration
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {DEVICE}")
+
+#---------------------------------------------------------------------------------------------------
 
 #Set up Env
 env = Jackal_Env(
@@ -27,69 +45,83 @@ print(f"State dim: {state_dim}, Action Dim: {action_dim}")
 #Declare PPO Agent
 agent = PPOAgent(state_dim, action_dim)
 
-#Reset env
+agent.actor.to(DEVICE)
+agent.critic.to(DEVICE)
+agent.device = DEVICE
+
+#Reset env and get first state
 observation, info = env.reset()
+processed_state = np.concatenate([observation['state'].flatten(), observation['lidar'].flatten()])
 
-total_steps = 2048 
-current_steps = 0
+global_step = 0         
+episode_reward_sum = 0      
+episode_steps = 0           
+episode_count = 0 
 
-max_episodes = 5
-episode_reward = 0
-episode_steps = 0
-episode_count = 0
-terminated_episode = False
-truncated_episode = False
-done_flag = False
+#---------------------------------------------------------------------------------------------------
 
 #Drive forward
-while True:
-    #Select action and take environment step
-    action, log_prob = agent.select_action(observation)
-    new_observation, reward, terminated, truncated, info = env.step(action)
+while global_step < TOTAL_TIMESTEPS:
+    batch_steps = 0
 
-    #Gather state information
-    current_processed_state = np.concatenate([observation['state'].flatten(), observation['lidar'].flatten()])
-    new_processed_state = np.concatenate([new_observation['state'].flatten(), new_observation['lidar'].flatten()])
+    while batch_steps < STEPS_PER_BATCH:
+        #Select action and take environment step
+        action, log_prob = agent.select_action(observation)
 
-    if terminated or truncated:
-        done = True
-        break
+        new_observation, reward, terminated, truncated, info = env.step(action)
+        env.render()
 
-    #Store experience
-    agent.buffer.store(
-        current_processed_state,
-        action,
-        reward,
-        new_processed_state,
-        done_flag,
-        log_prob
-    )
+        #Gather state information
+        new_processed_state = np.concatenate([new_observation['state'].flatten(), new_observation['lidar'].flatten()])
 
-    #Update env information
-    observation = new_observation
-    episode_reward += reward
-    episode_steps += 1
-    current_steps += 1
+        if terminated or truncated:
+            done_flag = True
+        else:
+            done_flag = False
 
-    env.render()
+        #Store experience
+        agent.buffer.store(
+            processed_state,
+            action,
+            reward,
+            new_processed_state,
+            done_flag,
+            log_prob
+        )
 
-    if current_steps >= total_steps:
-        #Update agent
-        agent.update()
+        #Update env information
+        episode_reward_sum += reward
+        episode_steps += 1
+        global_step += 1      
+        batch_steps += 1
 
-        current_steps = 0
+        # Update current observation for the next step
+        observation = new_observation
+        processed_state = new_processed_state
 
         if terminated or truncated:
             episode_count += 1
 
-            if episode_count >= max_episodes and current_steps == 0:
-                print(f"Reached max_episodes_for_test ({max_episodes}). Stopping.")
-                break
-            
+            # Log episode stats
+            if episode_count % LOG_INTERVAL_EPISODES == 0:
+                print(f"Episode {episode_count} | Total T: {global_step} | Steps: {episode_steps} | Reward: {episode_reward_sum:.2f}")
+
             # Reset environment for a new episode
             observation, info = env.reset()
-            episode_reward = 0
+
+            # Process the new initial observation for the next step
+            processed_state = np.concatenate([observation['state'].flatten(), observation['lidar'].flatten()])
+
+            # Reset episode specific counters
+            episode_reward_sum = 0 
             episode_steps = 0
+
+            break
+
+        if len(agent.buffer.states) > 0: 
+            agent.update()
+
+        
 
 env.close()
 

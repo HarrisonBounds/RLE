@@ -70,7 +70,7 @@ class ReplayBuffer:
         self.log_probs = []
 
 class PPOAgent:
-    def __init__(self, state_dim, action_dim, lr_actor=3e-4, lr_critic=3e-4, gamma=0.99,
+    def __init__(self, state_dim, action_dim, lr_actor=1e-4, lr_critic=1e-4, gamma=0.99,
                  epsilon_clip=0.2, K_epochs=10, entropy_coef=0.01, gae_lambda=0.95):
         
         self.gamma = gamma
@@ -98,6 +98,7 @@ class PPOAgent:
         processed_state = np.concatenate([state_data, lidar_data])
 
         state_tensor = torch.tensor(processed_state, dtype=torch.float32).unsqueeze(0)
+        state_tensor = state_tensor.to(self.device)
 
         #Forward Pass
         with torch.no_grad(): 
@@ -108,7 +109,7 @@ class PPOAgent:
         action = dist.sample()
         log_prob = dist.log_prob(action).sum(axis=-1)
 
-        return action.squeeze(0).numpy(), log_prob.item()
+        return action.squeeze(0).cpu().numpy(), log_prob.cpu().item()
 
     def compute_advantages_and_returns(self, rewards, values, next_values, dones):
         #Squeeze out the batch dimension
@@ -136,7 +137,11 @@ class PPOAgent:
             last_return = returns[t]
 
         # Normalize advantages
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        std_adv = advantages.std()
+        if std_adv > 1e-6:
+            advantages = (advantages - advantages.mean()) / std_adv
+        else:
+            advantages = advantages - advantages.mean()
 
         return advantages.unsqueeze(1), returns.unsqueeze(1)
 
@@ -202,11 +207,13 @@ class PPOAgent:
             #Update Actor
             self.optimizer_actor.zero_grad()
             actor_loss.backward()
+            nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=0.5)
             self.optimizer_actor.step()
 
             #Update Critic
             self.optimizer_critic.zero_grad()
             critic_loss.backward()
+            nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=0.5)
             self.optimizer_critic.step()
 
             print(f"Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}, Entropy: {entropy.item():.4f}")

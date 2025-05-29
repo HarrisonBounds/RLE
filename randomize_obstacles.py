@@ -125,13 +125,8 @@ def generate_random_size(obst_type: str) -> str:
         L = random.uniform(min_box_size, max_box_size)
         W = random.uniform(min_box_size, max_box_size)
         H = random.uniform(min_box_size, max_box_size)
-        # Ensure L >= W >= H for consistency
-        if L < W:
-            L, W = W, L
-        if W < H:
-            W, H = H, W
-        if L < H:
-            L, H = H, L
+        # Ensure L >= W >= H
+        L, W, H = sorted([L, W, H], reverse=True)
         return f"{fmt(L)} {fmt(W)} {fmt(H)}"
     elif obst_type == "cylinder":
         # Size is a string: "radius height"
@@ -178,7 +173,7 @@ def generate_random_position(area_size: tuple, type: str, size: str, obstacles: 
         elif type == "cylinder":
             # For a cylinder, the position is the center of the base
             z = dim[1] / 2  # Height of the cylinder
-            pos = (x - dim[0] / 2, y - dim[0] / 2, z)
+            pos = (x, y, z)
         elif type == "sphere":
             # For a sphere, the position is the center
             z = dim[0]  # Radius of the sphere
@@ -217,22 +212,6 @@ def generate_random_obstacles(num_obstacles: int, area_size: tuple) -> list[Obst
             Obstacle(obst_id, obst_type, size, pos)
         )
     return obstacles
-
-
-def create_xml_obstacle(obstacle_id, position, obstType, size) -> str:
-    # Validate inputs
-    assert len(position) == 3, "Position must be a tuple of (x, y, z)"
-    assert obstType in ["box", "cylinder",
-                        "sphere"], "Invalid obstacle type"
-    # Create string and return
-    return OBSTACLE_TEMPLATE.format(
-        obstID=obstacle_id,
-        pX=position[0],
-        pY=position[1],
-        pZ=position[2],
-        obstType=obstType,
-        size=size
-    )
 
 
 def insert_obstacles_raw(obstacles, in_path, out_path):
@@ -279,7 +258,7 @@ def insert_obstacles_raw(obstacles, in_path, out_path):
 
 
 if __name__ == "__main__":
-    REPETITIONS = 500
+    REPETITIONS = 1
     avg_runtime = 0.0
     for _ in range(REPETITIONS):
         start_time = time.perf_counter()

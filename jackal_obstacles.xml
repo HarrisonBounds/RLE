@@ -16,7 +16,7 @@
         <material name="white" rgba="1.0 1.0 1.0 1.0" />
         <material name="floor" rgba="0.5 0.5 0.5 1.0" />
         <material name="obstacleColor" rgba="0.8 0.1 0.1 1.0" />
-        <material name="wallColor" rgba="0.5 0.5 0.5 1.0" />
+        <material name="wallColor" rgba="1.0 0.5 0.0 1.0" />
         
         <mesh name="jackal-wheel" file="jackal-wheel.stl" />
         <mesh name="jackal-base" file="jackal-base.stl" />

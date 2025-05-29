@@ -7,9 +7,9 @@ END_TAG = "<!--END_OBSTACLES-->"
 
 # Template for an obstacle in the XML file
 OBSTACLE_TEMPLATE = (
-    "<body name=\"obstacle{obstID}\" pos=\"{pX} {pY} {pZ}\">"
-    "<geom type=\"{obstType}\" size=\"{size}\" material=\"obstacleColor\" />"
-    "</body>\n"
+    "\t\t<body name=\"obstacle{obstID}\" pos=\"{pX:.3f} {pY:.3f} {pZ:.3f}\">\n"
+    "\t\t\t<geom type=\"{obstType}\" size=\"{size}\" material=\"obstacleColor\" />\n"
+    "\t\t</body>"
 )
 
 # Load the XML file
@@ -234,36 +234,58 @@ def create_xml_obstacle(obstacle_id, position, obstType, size) -> str:
     )
 
 
-def insert_obstacles(obstacles: list[Obstacle], xml_tree: ET.ElementTree):
-    obstacle_xmls = [
-        create_xml_obstacle(obst.obst_id, obst.position,
-                            obst.obst_type, obst.size)
-        for obst in obstacles
+def insert_obstacles_raw(obstacles, in_path, out_path):
+    # 1) Read the original XML
+    with open(in_path, 'r', encoding='utf-8') as f:
+        xml = f.read()
+
+    # 2) Build the block of obstacle‐strings
+    obstacle_lines = [
+        OBSTACLE_TEMPLATE.format(
+            obstID=o.obst_id,
+            pX=o.position[0],
+            pY=o.position[1],
+            pZ=o.position[2],
+            obstType=o.obst_type,
+            size=o.size
+        )
+        for o in obstacles
     ]
-    xml_copy = ET.ElementTree(xml_tree)
-    start_index = xml_copy.find(START_TAG)
-    end_index = xml_copy.find(END_TAG, start_index)
-    if start_index == -1 or end_index == -1:
-        raise ValueError("Start or end tags not found in the XML file.")
-    # Insert obstacles between the start and end tags
-    obstacles_str = "\n".join(obstacle_xmls)
-    xml_copy.text = (
-        xml_copy[:start_index + len(START_TAG)] +
-        obstacles_str +
-        xml_copy[end_index:]
+    block = "\n".join(obstacle_lines)
+
+    # 3) Split on the markers
+    try:
+        before, rest = xml.split(START_TAG, 1)
+        _, after = rest.split(END_TAG, 1)
+    except ValueError:
+        raise ValueError(
+            "Could not find both START_OBSTACLES and END_OBSTACLES in the file")
+
+    # 4) Reassemble with your raw block in between
+    new_xml = (
+        before
+        + START_TAG
+        + "\n"       # optional: put block on its own lines
+        + block
+        + "\n"
+        + "\t\t" + END_TAG
+        + after
     )
-    return xml_copy
+
+    # 5) Write it out
+    with open(out_path, 'w', encoding='utf-8') as f:
+        f.write(new_xml)
 
 
+# Example usage:
 if __name__ == "__main__":
-    XML_TREE = ET.parse(FILE_PATH).getroot()
-    # Generate random obstacles
     NUM_OBSTACLES = 5
     AREA_SIZE = (-5, -5, 5, 5)  # (minX, minY, maxX, maxY)
     random_obstacles = generate_random_obstacles(NUM_OBSTACLES, AREA_SIZE)
-    # Insert obstacles into the XML tree
-    new_xml_tree = insert_obstacles(random_obstacles, XML_TREE)
-    # Write the modified XML back to the file
     NEW_FILE_PATH = "jackal_obstacles_randomized.xml"
-    new_xml_tree.write(NEW_FILE_PATH, encoding="utf-8", xml_declaration=True)
-    print(f"Randomized obstacles written to {NEW_FILE_PATH}")
+    insert_obstacles_raw(
+        random_obstacles,
+        in_path=FILE_PATH,
+        out_path=NEW_FILE_PATH
+    )
+    print("Wrote randomized obstacles as raw text between markers.")

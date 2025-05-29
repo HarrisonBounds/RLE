@@ -25,6 +25,94 @@ min_sphere_radius = 0.1
 max_sphere_radius = 1.0
 
 
+class Obstacle:
+    def __init__(self, obst_id: int, obst_type: str, size: str, position: tuple):
+        self.obst_id = obst_id
+        self.obst_type = obst_type
+        self.size = size
+        self.position = position
+
+    def get_largest_bounding_box(self) -> tuple:
+        if self.obst_type == "box":
+            # For a box, the bounding box is the same as its size
+            L, W, H = [float(s) for s in self.size.split()]
+            return (self.position[0], self.position[1], self.position[2],
+                    self.position[0] + L, self.position[1] + W, self.position[2] + H)
+        elif self.obst_type == "cylinder":
+            # For a cylinder, the bounding box is defined by its radius and height
+            R, H = [float(s) for s in self.size.split()]
+            return (self.position[0] - R, self.position[1] - R, self.position[2],
+                    self.position[0] + R, self.position[1] + R, self.position[2] + H)
+        elif self.obst_type == "sphere":
+            # For a sphere, the bounding box is defined by its radius
+            R = float(self.size.split()[0])
+            return (self.position[0] - R, self.position[1] - R, self.position[2] - R,
+                    self.position[0] + R, self.position[1] + R, self.position[2] + R)
+        else:
+            raise ValueError("Invalid obstacle type")
+
+    def intersects(self, other: "Obstacle") -> bool:
+        assert isinstance(
+            other, Obstacle), "Other must be an instance of Obstacle"
+        size = self.size.split(" ")
+        if self.obst_type == "box":
+            size = [float(s) for s in size]
+            L, W, H = size
+        elif self.obst_type == "cylinder":
+            size = [float(s) for s in size]
+            R, H = size
+        elif self.obst_type == "sphere":
+            size = [float(s) for s in size]
+            R = size[0]
+        other_size = other.size.split(" ")
+        if other.obst_type == "box":
+            other_size = [float(s) for s in other_size]
+            other_L, other_W, other_H = other_size
+        elif other.obst_type == "cylinder":
+            other_size = [float(s) for s in other_size]
+            other_R, other_H = other_size
+        elif other.obst_type == "sphere":
+            other_size = [float(s) for s in other_size]
+            other_R = other_size[0]
+        # Intersection logic
+        if self.obst_type == "box" and other.obst_type == "box":
+            # Check if two boxes intersect
+            return not (self.position[0] + L < other.position[0] or
+                        self.position[0] > other.position[0] + other_L or
+                        self.position[1] + W < other.position[1] or
+                        self.position[1] > other.position[1] + other_W or
+                        self.position[2] + H < other.position[2] or
+                        self.position[2] > other.position[2] + other_H)
+        elif self.obst_type == "cylinder" and other.obst_type == "cylinder":
+            # Check if two cylinders intersect (using 2D circle overlap and height)
+            dx = self.position[0] - other.position[0]
+            dy = self.position[1] - other.position[1]
+            dist_2d = (dx ** 2 + dy ** 2) ** 0.5
+            overlap_2d = dist_2d < (R + other_R)
+            z1_min = self.position[2] - H / 2
+            z1_max = self.position[2] + H / 2
+            z2_min = other.position[2] - other_H / 2
+            z2_max = other.position[2] + other_H / 2
+            overlap_z = not (z1_max < z2_min or z1_min > z2_max)
+            return overlap_2d and overlap_z
+        elif self.obst_type == "sphere" and other.obst_type == "sphere":
+            # Check if two spheres intersect
+            distance = ((self.position[0] - other.position[0]) ** 2 +
+                        (self.position[1] - other.position[1]) ** 2 +
+                        (self.position[2] - other.position[2]) ** 2) ** 0.5
+            return distance < (R + other_R)
+        else:
+            # For mixed types, we can use a simple bounding box check
+            self_bbox = self.get_largest_bounding_box()
+            other_bbox = other.get_largest_bounding_box()
+            return not (self_bbox[3] < other_bbox[0] or
+                        self_bbox[0] > other_bbox[3] or
+                        self_bbox[4] < other_bbox[1] or
+                        self_bbox[1] > other_bbox[4] or
+                        self_bbox[5] < other_bbox[2] or
+                        self_bbox[2] > other_bbox[5])
+
+
 def generate_random_size(obst_type: str) -> str:
     precision = 2  # Number of decimal places for size values
 
@@ -57,8 +145,77 @@ def generate_random_size(obst_type: str) -> str:
         raise ValueError("Invalid obstacle type")
 
 
-def generate_random_position(area_size: tuple, type: str, size: str) -> tuple:
-    pass
+def generate_random_position(area_size: tuple, type: str, size: str, obstacles: list) -> tuple:
+    # Area size is a tuple of (minX, minY, maxX, maxY)
+    assert len(
+        area_size) == 4, "Area size must be a tuple of (minX, minY, maxX, maxY)"
+    assert type in ["box", "cylinder", "sphere"], "Invalid obstacle type"
+    # Parse size depending on type
+    if type == "box":
+        dim = [float(s) for s in size.split(" ")]
+        assert len(dim) == 3, "Box size must be a string of 'L W H'"
+    elif type == "cylinder":
+        dim = [float(s) for s in size.split(" ")]
+        assert len(dim) == 2, "Cylinder size must be a string of 'radius height'"
+    elif type == "sphere":
+        dim = [float(s) for s in size.split(" ")]
+        assert len(dim) == 1, "Sphere size must be a string of 'radius'"
+    # Generate random position within the area bounds that does not intersect with any other
+    # obstacles
+     # Robot's position is at (0, 0, 0), define a 2m area around it to avoid
+    min_x, min_y, max_x, max_y = area_size
+    robot_area = 2  # sphere radius around the robot to avoid [0 -> 2]
+    while True:
+        x = random.uniform(min_x, max_x)
+        y = random.uniform(min_y, max_y)
+        # Assign the Z such that the obstacle is resting on the ground
+        z = 0.0
+        if type == "box":
+            # For a box, the position is the center of the base
+            z = dim[2] / 2  # Height of the box
+            pos = (x - dim[0] / 2, y - dim[1] / 2, z)
+        elif type == "cylinder":
+            # For a cylinder, the position is the center of the base
+            z = dim[1] / 2  # Height of the cylinder
+            pos = (x - dim[0] / 2, y - dim[0] / 2, z)
+        elif type == "sphere":
+            # For a sphere, the position is the center
+            z = dim[0]  # Radius of the sphere
+            pos = (x, y, z)
+        else:
+            raise ValueError("Invalid obstacle type")
+        # Check if the position is within the robot's area
+        if (x ** 2 + y ** 2) < robot_area ** 2:
+            continue
+        # Check if the position intersects with any existing obstacles
+        intersects = False
+        for obst in obstacles:
+            if obst.intersects(Obstacle(-1, type, size, pos)):
+                intersects = True
+                break
+        if not intersects:
+            return pos
+
+
+def generate_random_obstacles(num_obstacles: int, area_size: tuple) -> list[Obstacle]:
+    # Given a number of obstacles and the bounding area size,
+    # generate a list of random obstacles with unique Ids
+    # Ensure that no obstacles overlap with each other
+    # Ensure that all obstacles are within the area bounds and don't intersect the walls
+    # Ensure that no obstacles are generated at the robot's position (0, 0, 0)
+    assert len(
+        area_size) == 4, "Area size must be a tuple of (minX, minY, maxX, maxY)"
+    assert num_obstacles > 0, "Number of obstacles must be greater than 0"
+    obstacles = []
+    for i in range(num_obstacles):
+        obst_id = i + 1
+        obst_type = random.choice(["box", "cylinder", "sphere"])
+        size = generate_random_size(obst_type)
+        pos = generate_random_position(area_size, obst_type, size, obstacles)
+        obstacles.append(
+            Obstacle(obst_id, obst_type, size, pos)
+        )
+    return obstacles
 
 
 def create_xml_obstacle(obstacle_id, position, obstType, size) -> str:
@@ -77,39 +234,36 @@ def create_xml_obstacle(obstacle_id, position, obstType, size) -> str:
     )
 
 
-def generate_random_obstacles(num_obstacles: int, area_size: tuple) -> list[str]:
-    # Given a number of obstacles and the bounding area size,
-    # generate a list of random obstacles with unique Ids
-    # Ensure that no obstacles overlap with each other
-    # Ensure that all obstacles are within the area bounds and don't intersect the walls
-    # Ensure that no obstacles are generated at the robot's position (0, 0, 0)
-    assert len(
-        area_size) == 4, "Area size must be a tuple of (minX, minY, maxX, maxY)"
-    assert num_obstacles > 0, "Number of obstacles must be greater than 0"
-    obstacles = []
-    for i in range(num_obstacles):
-        obst_id = i + 1
-        obst_type = random.choice(["box", "cylinder", "sphere"])
-        size = generate_random_size(obst_type)
-        pos = generate_random_position(area_size, obst_type, size)
-
-
-def insert_obstacles(obstacles: list[str], xml_tree: ET.ElementTree):
-    start_index = xml_tree.find(START_TAG)
-    end_index = xml_tree.find(END_TAG)
+def insert_obstacles(obstacles: list[Obstacle], xml_tree: ET.ElementTree):
+    obstacle_xmls = [
+        create_xml_obstacle(obst.obst_id, obst.position,
+                            obst.obst_type, obst.size)
+        for obst in obstacles
+    ]
+    xml_copy = ET.ElementTree(xml_tree)
+    start_index = xml_copy.find(START_TAG)
+    end_index = xml_copy.find(END_TAG, start_index)
     if start_index == -1 or end_index == -1:
         raise ValueError("Start or end tags not found in the XML file.")
     # Insert obstacles between the start and end tags
-    obstacles_str = "\n".join(obstacles)
-    xml_tree.text = (
-        xml_tree.text[:start_index + len(START_TAG)] +
+    obstacles_str = "\n".join(obstacle_xmls)
+    xml_copy.text = (
+        xml_copy[:start_index + len(START_TAG)] +
         obstacles_str +
-        xml_tree.text[end_index:]
+        xml_copy[end_index:]
     )
+    return xml_copy
 
 
 if __name__ == "__main__":
     XML_TREE = ET.parse(FILE_PATH).getroot()
-    print(generate_random_size("box"))
-    print(generate_random_size("cylinder"))
-    print(generate_random_size("sphere"))
+    # Generate random obstacles
+    NUM_OBSTACLES = 5
+    AREA_SIZE = (-5, -5, 5, 5)  # (minX, minY, maxX, maxY)
+    random_obstacles = generate_random_obstacles(NUM_OBSTACLES, AREA_SIZE)
+    # Insert obstacles into the XML tree
+    new_xml_tree = insert_obstacles(random_obstacles, XML_TREE)
+    # Write the modified XML back to the file
+    NEW_FILE_PATH = "jackal_obstacles_randomized.xml"
+    new_xml_tree.write(NEW_FILE_PATH, encoding="utf-8", xml_declaration=True)
+    print(f"Randomized obstacles written to {NEW_FILE_PATH}")

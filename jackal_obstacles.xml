@@ -15,6 +15,8 @@
         <material name="black" rgba="0.15 0.15 0.15 1.0" />
         <material name="white" rgba="1.0 1.0 1.0 1.0" />
         <material name="floor" rgba="0.5 0.5 0.5 1.0" />
+        <material name="obstacleColor" rgba="0.8 0.1 0.1 1.0" />
+        <material name="wallColor" rgba="0.5 0.5 0.5 1.0" />
         
         <mesh name="jackal-wheel" file="jackal-wheel.stl" />
         <mesh name="jackal-base" file="jackal-base.stl" />
@@ -137,29 +139,33 @@
                 </body>
             </body>
         </body>
-    
-        <!-- Obstacles -->
-        <body name="obstacle1" pos="2 0 0.5">
-            <geom type="box" size="0.5 0.5 0.5" rgba="1 0 0 1" />
-        </body>
-        <body name="obstacle2" pos="0 3 0.5">
-            <geom type="cylinder" size="0.5 1" rgba="0 1 0 1" />
-        </body>
-        <body name="obstacle3" pos="-3 -2 0.5">
-            <geom type="sphere" size="0.7" rgba="0 0 1 1" />
-        </body>
+
+        <!-- Walls Enclosing the Robot [-5, 5] 10x10 Arena -->
         <body name="wall1" pos="5 0 0.5">
-            <geom type="box" size="0.1 5 0.5" rgba="0.5 0.5 0.5 1" />
+            <geom type="box" size="0.1 5 0.5" material="wallColor" />
         </body>
         <body name="wall2" pos="-5 0 0.5">
-            <geom type="box" size="0.1 5 0.5" rgba="0.5 0.5 0.5 1" />
+            <geom type="box" size="0.1 5 0.5" material="wallColor" />
         </body>
         <body name="wall3" pos="0 5 0.5">
-            <geom type="box" size="5 0.1 0.5" rgba="0.5 0.5 0.5 1" />
+            <geom type="box" size="5 0.1 0.5" material="wallColor" />
         </body>
         <body name="wall4" pos="0 -5 0.5">
-            <geom type="box" size="5 0.1 0.5" rgba="0.5 0.5 0.5 1" />
+            <geom type="box" size="5 0.1 0.5" material="wallColor" />
         </body>
+    
+        <!--START_OBSTACLES-->
+        <body name="obstacle1" pos="2 0 0.5">
+            <geom type="box" size="0.5 0.5 0.5" material="obstacleColor" />
+        </body>
+        <body name="obstacle2" pos="0 3 0.5">
+            <geom type="cylinder" size="0.5 1" material="obstacleColor" />
+        </body>
+        <body name="obstacle3" pos="-3 -2 0.5">
+            <geom type="sphere" size="0.7" material="obstacleColor" />
+        </body>
+        <!--END_OBSTACLES-->
+
     </worldbody>
     
     <actuator>

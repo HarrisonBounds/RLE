@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import random
+import time
 
 # Tags in XML to identify where to insert generated obstacles
 START_TAG = "<!--START_OBSTACLES-->"
@@ -278,6 +279,7 @@ def insert_obstacles_raw(obstacles, in_path, out_path):
 
 
 if __name__ == "__main__":
+    start_time = time.perf_counter()
     NUM_OBSTACLES = 10
     AREA_SIZE = (-5, -5, 5, 5)  # (minX, minY, maxX, maxY)
     random_obstacles = generate_random_obstacles(NUM_OBSTACLES, AREA_SIZE)
@@ -287,6 +289,8 @@ if __name__ == "__main__":
         in_path=FILE_PATH,
         out_path=NEW_FILE_PATH
     )
+    elapsed = (time.perf_counter() - start_time) * 1000  # milliseconds
     print(
         f"Generated {NUM_OBSTACLES} random obstacles and saved to {NEW_FILE_PATH}"
     )
+    print(f"Elapsed time: {elapsed:.3f} ms")

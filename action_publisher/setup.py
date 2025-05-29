@@ -4,7 +4,7 @@ package_name = 'action_publisher'
 
 setup(
     name=package_name,
-    version='0.0.0',
+    version='1.0.0',
     packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -13,10 +13,10 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='lbos7',
+    maintainer='Logan Boswell',
     maintainer_email='loganstuartboswell@gmail.com',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='ROS2 package for publishing RL actions to a topic',
+    license='Apache 2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [

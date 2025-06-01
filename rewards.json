@@ -1,8 +1,11 @@
 {
-    "forward_velocity": 1.0,
+    "forward_velocity": 10.0,
     "angular_velocity": 0.2,
     "collision": -10.0,
     "min_lidar_dist": 0.5,
     "lidar_proximity": -2.0,
-    "time_step": -0.01
+    "time_step": -0.01,
+    "backward_velocity": -1.0,
+    "still": -5.0,
+    "movement": 5.0
 }

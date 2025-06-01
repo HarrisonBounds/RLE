@@ -8,27 +8,39 @@ import numpy as np
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Actor, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 64)
-        self.fc2 = nn.Linear(64, 64)
-        self.fc3 = nn.Linear(64, action_dim) 
+        self.fc1 = nn.Linear(state_dim, 2048)
+        self.fc2 = nn.Linear(2048, 1024)
+        self.fc3 = nn.Linear(1024, 512)
+        self.fc4 = nn.Linear(512, 256)
+        self.fc5 = nn.Linear(256, 64)
+        self.fc6 = nn.Linear(64, action_dim) 
         self.log_std = nn.Parameter(torch.zeros(1, action_dim)) 
     def forward(self, state):
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
-        action_mean = torch.tanh(self.fc3(x)) 
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        x = F.relu(self.fc5(x))
+        action_mean = torch.tanh(self.fc6(x)) 
         action_std = torch.exp(self.log_std)
-        return action_mean, action_std #Output probability distribution
+        return action_mean, action_std 
 
 class Critic(nn.Module):
     def __init__(self, state_dim):
         super(Critic, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 64)
-        self.fc2 = nn.Linear(64, 64)
-        self.fc3 = nn.Linear(64, 1)
+        self.fc1 = nn.Linear(state_dim, 2048)
+        self.fc2 = nn.Linear(2048, 1024)
+        self.fc3 = nn.Linear(1024, 512)
+        self.fc4 = nn.Linear(512, 256)
+        self.fc5 = nn.Linear(256, 64)
+        self.fc6 = nn.Linear(64, 1) 
     def forward(self, state):
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
-        value = self.fc3(x) #Output scalar of expected rewards
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        x = F.relu(self.fc5(x))
+        value = self.fc6(x)
         return value
 
 #Store data to update policy   
@@ -70,8 +82,9 @@ class ReplayBuffer:
         self.log_probs = []
 
 class PPOAgent:
-    def __init__(self, state_dim, action_dim, lr_actor=1e-4, lr_critic=1e-4, gamma=0.99,
-                 epsilon_clip=0.2, K_epochs=10, entropy_coef=0.01, gae_lambda=0.95):
+    def __init__(self, state_dim, action_dim, lr_actor=1e-4, lr_critic=1e-4, gamma=0.995,
+                 epsilon_clip=0.2, K_epochs=10, entropy_coef=0.01, gae_lambda=0.98,
+                 action_space_low=None, action_space_high=None):
         
         self.gamma = gamma
         self.epsilon_clip = epsilon_clip
@@ -91,11 +104,12 @@ class PPOAgent:
         self.actor.to(self.device)
         self.critic.to(self.device)
 
+        self.action_space_low = torch.tensor(action_space_low, dtype=torch.float32, device=self.device)
+        self.action_space_high = torch.tensor(action_space_high, dtype=torch.float32, device=self.device)
+
     def select_action(self, observation):
         
-        state_data = observation['state'].flatten()
-        lidar_data = observation['lidar'].flatten()
-        processed_state = np.concatenate([state_data, lidar_data])
+        processed_state = observation
 
         state_tensor = torch.tensor(processed_state, dtype=torch.float32).unsqueeze(0)
         state_tensor = state_tensor.to(self.device)
@@ -109,7 +123,9 @@ class PPOAgent:
         action = dist.sample()
         log_prob = dist.log_prob(action).sum(axis=-1)
 
-        return action.squeeze(0).cpu().numpy(), log_prob.cpu().item()
+        clipped_action = torch.clamp(action, self.action_space_low, self.action_space_high)
+
+        return clipped_action.squeeze(0).cpu().numpy(), log_prob.cpu().item()
 
     def compute_advantages_and_returns(self, rewards, values, next_values, dones):
         #Squeeze out the batch dimension
@@ -216,7 +232,7 @@ class PPOAgent:
             nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=0.5)
             self.optimizer_critic.step()
 
-            print(f"Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}, Entropy: {entropy.item():.4f}")
+            #print(f"Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}, Entropy: {entropy.item():.4f}")
 
             
 

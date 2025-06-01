@@ -74,7 +74,15 @@ class Jackal_Env(gym.Env):
         with open('rewards.json', 'r') as file:
             self.rewards = json.load(file)
 
+        self.prev_x = 0.0
+        self.prev_y = 0.0
+
     def step(self, action):
+        # Initialize reward FIRST
+        reward = 0.0
+        terminated = False
+        truncated = False
+        info = {}
 
         assert len(action) == 2, "Action should be [left_speed, right_speed]"
 
@@ -89,6 +97,7 @@ class Jackal_Env(gym.Env):
         # Basic observation
         state_obs = np.concatenate([self.data.qpos.flat, self.data.qvel.flat])
 
+        # LiDAR observation (still collected for the agent, but not for reward)
         if self.use_lidar:
             lidar_obs = self.lidar.update()['ranges']
             observation = {
@@ -98,33 +107,10 @@ class Jackal_Env(gym.Env):
         else:
             observation = state_obs.astype(np.float32)
 
-        reward = 0.0
-        terminated = False
-        truncated = False
-        info = {}
+        if self.data.ncon > 4: 
+            reward += self.rewards.get("collision", 0.0)
+            terminated = True 
 
-        forward_velocity = self.data.qvel[0]
-        reward += self.rewards["forward_velocity"] * np.clip(forward_velocity, 0, None)
-
-        angular_velocity = np.linalg.norm(self.data.qvel[3:6])
-        reward += self.rewards["angular_velocity"] * angular_velocity
-
-        if self.use_lidar:
-            if lidar_obs.size > 0 and np.isfinite(lidar_obs).any():
-                min_lidar_distance = np.min(lidar_obs[np.isfinite(lidar_obs)]) 
-                if min_lidar_distance < self.rewards["min_lidar_dist"]:
-                    proximity_penalty = self.rewards["lidar_proximity"] * \
-                                        (1 - min_lidar_distance / self.min_lidar_dist_threshold)
-                    reward += proximity_penalty
-            else:
-                min_lidar_distance = self.lidar.max_range
-
-        if self.data.ncon > 0:
-            reward += self.rewards["collision"]
-            terminated = True
-
-        reward += self.rewards["time_step"]
-        
         return observation, reward, terminated, truncated, info
 
 
@@ -133,6 +119,36 @@ class Jackal_Env(gym.Env):
 
         mujoco.mj_resetData(self.model, self.data)
         mujoco.mj_forward(self.model, self.data)
+
+        # Reset previous position to the initial position
+        self.prev_x = self.data.qpos[0]
+        self.prev_y = self.data.qpos[1]
+
+        # Get the basic observation
+        state_obs = np.concatenate([self.data.qpos.flat, self.data.qvel.flat])
+
+        # Get LiDAR observation if enabled
+        if self.use_lidar:
+            lidar_obs = self.lidar.update()['ranges']
+            observation = {
+                'state': state_obs.astype(np.float32),
+                'lidar': lidar_obs.astype(np.float32)
+            }
+        else:
+            observation = state_obs.astype(np.float32)
+
+        info = {}
+        return observation, info
+
+
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
+
+        mujoco.mj_resetData(self.model, self.data)
+        mujoco.mj_forward(self.model, self.data)
+
+        self.prev_x = self.data.qpos[0]
+        self.prev_y = self.data.qpos[1]
 
         # Get the basic observation
         state_obs = np.concatenate([self.data.qpos.flat, self.data.qvel.flat])

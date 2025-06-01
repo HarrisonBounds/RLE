@@ -9,8 +9,9 @@ import os
 
 # --- Training Hyperparameters ---
 TOTAL_TIMESTEPS = 1_000_000   
-STEPS_PER_BATCH = 2048                
-
+STEPS_PER_BATCH = 512
+MAX_STEPS = STEPS_PER_BATCH * 4
+             
 # --- Logging & Saving ---
 LOG_INTERVAL_EPISODES = 10   
 SAVE_MODEL_INTERVAL_STEPS = 100000
@@ -80,6 +81,11 @@ try:
         batch_steps = 0
         
         while batch_steps < STEPS_PER_BATCH:
+            print(f"Global step: {global_step}")
+
+            if global_step >= MAX_STEPS:
+                truncated = True
+
             # Pass the ALREADY PROCESSED (flattened/concatenated) state to select_action
             action, log_prob = agent.select_action(processed_state)
             

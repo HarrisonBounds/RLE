@@ -84,6 +84,9 @@ class Jackal_Env(gym.Env):
         truncated = False
         info = {}
 
+        x_vel = self.data.qvel[0]
+        angular_vel = self.data.qvel[5]
+
         assert len(action) == 2, "Action should be [left_speed, right_speed]"
 
         # Set actuators
@@ -108,8 +111,12 @@ class Jackal_Env(gym.Env):
             observation = state_obs.astype(np.float32)
 
         if self.data.ncon > 4: 
-            reward += self.rewards.get("collision", 0.0)
+            reward += self.rewards["collision"]
             terminated = True 
+
+
+        reward += x_vel * self.rewards["forward_velocity"]
+        reward += abs(angular_vel) * self.rewards["angular_velocity"]
 
         return observation, reward, terminated, truncated, info
 

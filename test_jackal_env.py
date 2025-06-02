@@ -26,7 +26,7 @@ print(f"Using device: {DEVICE}")
 
 # Set up Env
 env = Jackal_Env(
-    xml_file="jackal_obstacles.xml",
+    xml_file="jackal_obstacles_randomized.xml",
     render_mode="human",
     use_lidar=True # Keeping this as True, so env returns a dictionary
 )

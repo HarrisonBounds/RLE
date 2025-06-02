@@ -237,7 +237,7 @@ class Jackal_Env(gym.Env):
         # Generate a new XML file with randomized obstacles
         randomize_environment(
             env_path=self.xml_file,
-            max_num_obstacles=7,  # Adjust as needed or parameterize
+            max_num_obstacles=10,  # Adjust as needed or parameterize
         )
 
         # Load the new model
@@ -257,6 +257,11 @@ class Jackal_Env(gym.Env):
                 # return_type='ranges'  # Just return ranges for the gym environment
             )
 
+        # Reset the viewer if it exists
+        if self.viewer:
+            self.viewer.close()
+            self.viewer = None
+        # Reset the model and data
         mujoco.mj_resetData(self.model, self.data)
         mujoco.mj_forward(self.model, self.data)
 

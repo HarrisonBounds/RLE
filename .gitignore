@@ -2,4 +2,3 @@ __pycache__/
 .vscode/
 .venv
 .ply
-jackal_obstacles_randomized.xml

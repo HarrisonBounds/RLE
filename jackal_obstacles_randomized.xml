@@ -155,11 +155,17 @@
         </body>
     
         <!--START_OBSTACLES-->
-		<body name="obstacle1" pos="2.596 1.023 0.890">
-			<geom type="sphere" size="0.89" material="obstacleColor" />
+		<body name="obstacle1" pos="4.265 -4.467 0.575">
+			<geom type="cylinder" size="0.69 1.15" material="obstacleColor" />
 		</body>
-		<body name="obstacle2" pos="-1.733 -2.972 0.160">
-			<geom type="box" size="1.79 1.17 0.32" material="obstacleColor" />
+		<body name="obstacle2" pos="3.770 4.357 0.530">
+			<geom type="sphere" size="0.53" material="obstacleColor" />
+		</body>
+		<body name="obstacle3" pos="-2.167 2.552 0.410">
+			<geom type="box" size="1.51 0.88 0.82" material="obstacleColor" />
+		</body>
+		<body name="obstacle4" pos="2.489 3.934 0.570">
+			<geom type="sphere" size="0.57" material="obstacleColor" />
 		</body>
 		<!--END_OBSTACLES-->
 

@@ -257,7 +257,7 @@ def insert_obstacles_raw(obstacles, in_path, out_path):
         f.write(new_xml)
 
 
-def randomize_environment(env_path: str, max_num_obstacles: int = 7):
+def randomize_environment(env_path: str, max_num_obstacles: int = 7) -> None:
     """
     Randomizes the environment by generating a random number of obstacles
     and inserting them into the specified XML file.

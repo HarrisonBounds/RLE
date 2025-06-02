@@ -8,6 +8,7 @@ import time
 from lidar_sensor import VLP16Sensor
 import json
 from scipy.spatial.transform import Rotation as R
+from randomize_obstacles import randomize_environment
 
 
 class Jackal_Env(gym.Env):
@@ -17,13 +18,15 @@ class Jackal_Env(gym.Env):
         super().__init__()
 
         # Load the MuJoCo model
+        self.xml_file = xml_file
         self.model = mujoco.MjModel.from_xml_path(xml_file)
         self.data = mujoco.MjData(self.model)
         self.metadata = {"render_modes": ["human", "rgb_array"],
                          "render_fps": int(1.0 / (self.model.opt.timestep))}
-        
-        self.lidar_viz_enabled = False
 
+        self.lidar_viz_enabled = False
+        self.num_lidar_rays_h = num_lidar_rays_h
+        self.lidar_max_range = lidar_max_range
         # LiDAR configuration
         self.use_lidar = use_lidar
         if self.use_lidar:
@@ -70,25 +73,25 @@ class Jackal_Env(gym.Env):
             self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "right_actuator")
         self.right_rear = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "rear_right_actuator")
-        
-        #Read reward config
+
+        # Read reward config
         with open('rewards.json', 'r') as file:
             self.rewards = json.load(file)
 
         self.prev_x = 0.0
         self.prev_y = 0.0
 
-        self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+        self.floor_geom_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
 
         self.robot_geom_ids = []
         self.obstacle_geom_ids = []
 
-       
         for i in range(self.model.ngeom):
-            if self.model.geom_group[i] == 2: 
-                if i != self.floor_geom_id: 
+            if self.model.geom_group[i] == 2:
+                if i != self.floor_geom_id:
                     self.robot_geom_ids.append(i)
-            elif self.model.geom_group[i] == 1: 
+            elif self.model.geom_group[i] == 1:
                 self.obstacle_geom_ids.append(i)
 
         # Print for debugging:
@@ -101,31 +104,31 @@ class Jackal_Env(gym.Env):
     def _check_collision(self, group1, group2):
         for i in range(self.data.ncon):
             contact = self.data.contact[i]
-            
+
             geom1 = contact.geom1
             geom2 = contact.geom2
-            
+
             # Check if contact is between any geom in group1 and any geom in group2
             if (geom1 in group1 and geom2 in group2) or \
                (geom2 in group1 and geom1 in group2):
                 return True
-                
+
         return False
 
     def _check_roll_pitch(self):
-        quaternion = self.data.qpos[3:7] # Get the quaternion (qw, qx, qy, qz)
-        
-        rotation = R.from_quat(quaternion[[1,2,3,0]]) 
+        quaternion = self.data.qpos[3:7]  # Get the quaternion (qw, qx, qy, qz)
 
-       
-        roll, pitch, yaw = rotation.as_euler('xyz') 
+        rotation = R.from_quat(quaternion[[1, 2, 3, 0]])
+
+        roll, pitch, yaw = rotation.as_euler('xyz')
 
         # Check absolute values against the threshold
         if abs(roll) > self.roll_pitch_threshold or abs(pitch) > self.roll_pitch_threshold:
-            print(f"TERMINATION: Roll/Pitch too extreme! Roll: {np.degrees(roll):.2f} deg, Pitch: {np.degrees(pitch):.2f} deg")
+            print(
+                f"TERMINATION: Roll/Pitch too extreme! Roll: {np.degrees(roll):.2f} deg, Pitch: {np.degrees(pitch):.2f} deg")
             return True
         return False
-    
+
     def step(self, action):
         # Initialize reward FIRST
         reward = 0.0
@@ -139,7 +142,8 @@ class Jackal_Env(gym.Env):
         current_y = self.data.qpos[1]
 
         # Calculate actual displacement
-        displacement = np.sqrt((current_x - self.prev_x)**2 + (current_y - self.prev_y)**2)
+        displacement = np.sqrt((current_x - self.prev_x)
+                               ** 2 + (current_y - self.prev_y)**2)
         self.prev_x = current_x
         self.prev_y = current_y
 
@@ -165,25 +169,29 @@ class Jackal_Env(gym.Env):
             }
 
             frontal_sector = np.concatenate([
-            lidar_obs[0, :30],    # Left-front
-            lidar_obs[0, 330:360] # Right-front
-        ])
+                lidar_obs[0, :30],    # Left-front
+                lidar_obs[0, 330:360]  # Right-front
+            ])
             min_frontal_distance = np.min(frontal_sector)
-            
+
             # Progressive penalty for frontal obstacles
             danger_zone = 1.0
             if min_frontal_distance < danger_zone:
                 print(f"min_frontal_dist: {min_frontal_distance}")
                 # Penalty increases as distance decreases
-                obstacle_penalty = self.rewards["lidar_proximity"] * (1/min_frontal_distance)
+                obstacle_penalty = self.rewards["lidar_proximity"] * \
+                    (1/min_frontal_distance)
                 reward += obstacle_penalty
-                
+
                 # Reward turning actions when obstacles are near
-                turn_reward = abs(angular_vel) * self.rewards["obstacle_turn"] * (1/min_frontal_distance)
+                turn_reward = abs(
+                    angular_vel) * self.rewards["obstacle_turn"] * (1/min_frontal_distance)
                 reward += turn_reward
-                
+
                 # Reduce forward reward when obstacles are near
-                x_vel_reward = x_vel * self.rewards["forward_velocity"] * min_frontal_distance/danger_zone
+                x_vel_reward = x_vel * \
+                    self.rewards["forward_velocity"] * \
+                    min_frontal_distance/danger_zone
                 reward += x_vel_reward
             else:
                 # Normal forward motion reward when no obstacles
@@ -191,19 +199,20 @@ class Jackal_Env(gym.Env):
         else:
             observation = state_obs.astype(np.float32)
 
-        # Anti-spinning penalty 
+        # Anti-spinning penalty
         spinning_threshold = 0.5  # rad/s
         min_displacement = 0.05  # meters per step to consider it meaningful movement
-        
+
         if abs(angular_vel) > spinning_threshold:
-            spinning_penalty = self.rewards["spinning_penalty"] * (abs(angular_vel) - spinning_threshold)
+            spinning_penalty = self.rewards["spinning_penalty"] * \
+                (abs(angular_vel) - spinning_threshold)
             reward += spinning_penalty
-            #print(f"Angular Velocity: {abs(angular_vel)}")
-            #info['spinning_penalty'] = spinning_penalty  
+            # print(f"Angular Velocity: {abs(angular_vel)}")
+            # info['spinning_penalty'] = spinning_penalty
 
         if self._check_collision(self.robot_geom_ids, self.obstacle_geom_ids):
             reward += self.rewards["collision"]
-            terminated = True 
+            terminated = True
 
         if self._check_roll_pitch():
             reward += self.rewards["collision"]
@@ -216,15 +225,37 @@ class Jackal_Env(gym.Env):
         reward += abs(angular_vel) * self.rewards["angular_velocity"]
         reward += displacement * self.rewards["displacement"]
 
-        #Additional backward penalty
+        # Additional backward penalty
         if self.data.qvel[0] <= 0:
             reward += self.data.qvel[0] * self.rewards["backward_velocity"]
 
         return observation, reward, terminated, truncated, info
 
-
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+
+        # Generate a new XML file with randomized obstacles
+        randomize_environment(
+            env_path=self.xml_file,
+            max_num_obstacles=7,  # Adjust as needed or parameterize
+        )
+
+        # Load the new model
+        self.model = mujoco.MjModel.from_xml_path(self.xml_file)
+        self.data = mujoco.MjData(self.model)
+        self.metadata = {"render_modes": ["human", "rgb_array"],
+                         "render_fps": int(1.0 / (self.model.opt.timestep))}
+        # Reinitialize LiDAR if enabled since the model has changed
+        if self.use_lidar:
+            self.lidar = VLP16Sensor(
+                self.model,
+                self.data,
+                lidar_name="velodyne",
+                horizontal_resolution=360.0/self.num_lidar_rays_h,  # Convert ray count to degrees
+                rotation_rate=10,  # Hz
+                max_range=self.lidar_max_range
+                # return_type='ranges'  # Just return ranges for the gym environment
+            )
 
         mujoco.mj_resetData(self.model, self.data)
         mujoco.mj_forward(self.model, self.data)
@@ -248,7 +279,6 @@ class Jackal_Env(gym.Env):
 
         info = {}
         return observation, info
-
 
     def render(self):
         if self.render_mode == "human":

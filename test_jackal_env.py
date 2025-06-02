@@ -9,8 +9,8 @@ import os
 
 # --- Training Hyperparameters ---
 TOTAL_TIMESTEPS = 1_000_000   
-STEPS_PER_BATCH = 512
-MAX_STEPS = STEPS_PER_BATCH * 4
+STEPS_PER_BATCH = 256
+MAX_STEPS = STEPS_PER_BATCH * 8
              
 # --- Logging & Saving ---
 LOG_INTERVAL_EPISODES = 10   

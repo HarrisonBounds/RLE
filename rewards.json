@@ -1,6 +1,6 @@
 {
     "forward_velocity": 1.0,
-    "angular_velocity": -0.5,
+    "angular_velocity": -0.1,
     "collision": -5.0,
     "min_lidar_dist": 0.5,
     "lidar_proximity": -2.0,

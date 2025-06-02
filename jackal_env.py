@@ -107,6 +107,11 @@ class Jackal_Env(gym.Env):
                 'state': state_obs.astype(np.float32),
                 'lidar': lidar_obs.astype(np.float32)
             }
+
+            min_distance = np.min(lidar_obs)  # Find the closest obstacle
+            proximity_threshold = 0.5  # meters (adjust this value)
+            if min_distance < proximity_threshold:
+                reward += self.rewards["lidar_proximity"] * (proximity_threshold - min_distance)
         else:
             observation = state_obs.astype(np.float32)
 
@@ -128,32 +133,6 @@ class Jackal_Env(gym.Env):
         mujoco.mj_forward(self.model, self.data)
 
         # Reset previous position to the initial position
-        self.prev_x = self.data.qpos[0]
-        self.prev_y = self.data.qpos[1]
-
-        # Get the basic observation
-        state_obs = np.concatenate([self.data.qpos.flat, self.data.qvel.flat])
-
-        # Get LiDAR observation if enabled
-        if self.use_lidar:
-            lidar_obs = self.lidar.update()['ranges']
-            observation = {
-                'state': state_obs.astype(np.float32),
-                'lidar': lidar_obs.astype(np.float32)
-            }
-        else:
-            observation = state_obs.astype(np.float32)
-
-        info = {}
-        return observation, info
-
-
-    def reset(self, seed=None, options=None):
-        super().reset(seed=seed)
-
-        mujoco.mj_resetData(self.model, self.data)
-        mujoco.mj_forward(self.model, self.data)
-
         self.prev_x = self.data.qpos[0]
         self.prev_y = self.data.qpos[1]
 

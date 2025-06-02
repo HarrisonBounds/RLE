@@ -99,7 +99,6 @@ class Jackal_Env(gym.Env):
         self.roll_pitch_threshold = 0.6
 
     def _check_collision(self, group1, group2):
-        print(f"self.data.ncon: {self.data.ncon}")
         for i in range(self.data.ncon):
             contact = self.data.contact[i]
             
@@ -172,14 +171,15 @@ class Jackal_Env(gym.Env):
             min_frontal_distance = np.min(frontal_sector)
             
             # Progressive penalty for frontal obstacles
-            danger_zone = 0.8  
+            danger_zone = 1.0
             if min_frontal_distance < danger_zone:
+                print(f"min_frontal_dist: {min_frontal_distance}")
                 # Penalty increases as distance decreases
-                obstacle_penalty = self.rewards["lidar_proximity"] * (1 - min(min_frontal_distance/danger_zone, 1))
+                obstacle_penalty = self.rewards["lidar_proximity"] * (1/min_frontal_distance)
                 reward += obstacle_penalty
                 
                 # Reward turning actions when obstacles are near
-                turn_reward = abs(angular_vel) * self.rewards["obstacle_turn"] * (1 - min_frontal_distance/danger_zone)
+                turn_reward = abs(angular_vel) * self.rewards["obstacle_turn"] * (1/min_frontal_distance)
                 reward += turn_reward
                 
                 # Reduce forward reward when obstacles are near
@@ -205,19 +205,21 @@ class Jackal_Env(gym.Env):
             reward += self.rewards["collision"]
             terminated = True 
 
-
         if self._check_roll_pitch():
+            reward += self.rewards["collision"]
+            terminated = True
+
+        if abs(angular_vel) > 5:
             reward += self.rewards["collision"]
             terminated = True
 
         reward += abs(angular_vel) * self.rewards["angular_velocity"]
         reward += displacement * self.rewards["displacement"]
+
         #Additional backward penalty
         if self.data.qvel[0] <= 0:
             reward += self.data.qvel[0] * self.rewards["backward_velocity"]
 
-
-        
         return observation, reward, terminated, truncated, info
 
 

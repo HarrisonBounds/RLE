@@ -461,7 +461,7 @@ class VLP16Sensor:
         interval = int(1000 / frame_rate)  # convert frame rate to milliseconds
         self.animation = FuncAnimation(
             self.fig, self._update_animation_frame,
-            interval=interval, blit=False)
+            interval=interval, blit=False, save_count=0)
 
         # Show the plot (non-blocking)
         plt.ion()  # Turn on interactive mode

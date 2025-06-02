@@ -245,6 +245,7 @@ class Jackal_Env(gym.Env):
         self.data = mujoco.MjData(self.model)
         self.metadata = {"render_modes": ["human", "rgb_array"],
                          "render_fps": int(1.0 / (self.model.opt.timestep))}
+
         # Reinitialize LiDAR if enabled since the model has changed
         if self.use_lidar:
             self.lidar = VLP16Sensor(
@@ -261,6 +262,7 @@ class Jackal_Env(gym.Env):
         if self.viewer:
             self.viewer.close()
             self.viewer = None
+
         # Reset the model and data
         mujoco.mj_resetData(self.model, self.data)
         mujoco.mj_forward(self.model, self.data)

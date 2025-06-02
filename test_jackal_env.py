@@ -9,7 +9,7 @@ import os
 
 # --- Training Hyperparameters ---
 TOTAL_TIMESTEPS = 1_000_000   
-STEPS_PER_BATCH = 256
+STEPS_PER_BATCH = 512
 MAX_STEPS = STEPS_PER_BATCH * 8
              
 # --- Logging & Saving ---
@@ -72,6 +72,7 @@ global_step = 0
 episode_reward_sum = 0      
 episode_steps = 0           
 episode_count = 0 
+batch_number = 0
 
 #---------------------------------------------------------------------------------------------------
 
@@ -131,11 +132,12 @@ try:
                 # Reset episode specific counters
                 episode_reward_sum = 0 
                 episode_steps = 0
-
                 break
 
-        if len(agent.buffer.states) > 0: 
+        if len(agent.buffer.states) > 0:
+            batch_number += 1 
             agent.update()
+            print(f"Updated batch: {batch_number}")
 
         if global_step % SAVE_MODEL_INTERVAL_STEPS == 0:
             torch.save(agent.actor.state_dict(), os.path.join(MODEL_DIR, f"actor_step_{global_step}.pth"))

@@ -258,6 +258,16 @@ class Jackal_Env(gym.Env):
                 # return_type='ranges'  # Just return ranges for the gym environment
             )
 
+        # Reassign the geometry IDs
+        self.robot_geom_ids = []
+        self.obstacle_geom_ids = []
+        for i in range(self.model.ngeom):
+            if self.model.geom_group[i] == 2:
+                if i != self.floor_geom_id:
+                    self.robot_geom_ids.append(i)
+            elif self.model.geom_group[i] == 1:
+                self.obstacle_geom_ids.append(i)
+
         # Reset the viewer if it exists
         if self.viewer:
             self.viewer.close()

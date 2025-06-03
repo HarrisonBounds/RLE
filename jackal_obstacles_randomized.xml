@@ -88,7 +88,7 @@
                 
                 <!-- IMU Link -->
                 <body name="imu_link">
-                    <inertial pos="0 0 0" mass="0.001" diaginertia="1e-09 1e-09 1e-09" group="2"/>
+                    <inertial pos="0 0 0" mass="0.001" diaginertia="1e-09 1e-09 1e-09"/>
                 </body>
                 
                 <!-- NAVSAT Link -->
@@ -155,17 +155,11 @@
         </body>
     
         <!--START_OBSTACLES-->
-		<body name="obstacle1" pos="2.060 -0.715 0.795">
-			<geom type="cylinder" size="0.30 1.59" material="obstacleColor" group="1"/>
+		<body name="obstacle1" pos="-2.953 -5.021 0.395">
+			<geom type="box" size="2.00 1.14 0.79" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle2" pos="-4.726 2.903 0.180">
-			<geom type="cylinder" size="0.67 0.36" material="obstacleColor" group="1"/>
-		</body>
-		<body name="obstacle3" pos="4.538 2.218 0.870">
-			<geom type="sphere" size="0.87" material="obstacleColor" group="1"/>
-		</body>
-		<body name="obstacle4" pos="-4.924 -4.159 0.600">
-			<geom type="sphere" size="0.60" material="obstacleColor" group="1"/>
+		<body name="obstacle2" pos="2.739 0.178 0.200">
+			<geom type="sphere" size="0.20" material="obstacleColor" group="1"/>
 		</body>
 		<!--END_OBSTACLES-->
 

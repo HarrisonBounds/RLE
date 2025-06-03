@@ -102,18 +102,18 @@ class Jackal_Env(gym.Env):
         print(f"robot geom ids: {self.robot_geom_ids}")
         print(f"floor geom id: {self.floor_geom_id}")
 
-        self.goal_position = self.assign_goal_position()
+        self.goal_position = self.extract_goal_position()
         print(f"Goal position: {self.goal_position}")
 
         self.roll_pitch_threshold = 0.6
 
-    def assign_goal_position(self):
+    def extract_goal_position(self):
         self.goal_geom_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "goal_geom"
         )
         if self.goal_geom_id == -1:
             raise ValueError("Could not find geom named 'goal_geom'")
-        self.goal_position = self.data.geom_xpos[self.goal_geom_id].copy()
+        return self.data.geom_xpos[self.goal_geom_id].copy()
 
     def _check_collision(self, group1, group2):
         for i in range(self.data.ncon):
@@ -173,7 +173,7 @@ class Jackal_Env(gym.Env):
                 'state': state_obs.astype(np.float32),
                 'lidar': lidar_obs.astype(np.float32)
             }
-            
+
         else:
             observation = state_obs.astype(np.float32)
 
@@ -252,7 +252,7 @@ class Jackal_Env(gym.Env):
                 self.goal_id.append(i)
 
         # Reassign the goal position
-        self.goal_position = self.assign_goal_position()
+        self.goal_position = self.extract_goal_position()
 
         # Reset the viewer if it exists
         if self.viewer:

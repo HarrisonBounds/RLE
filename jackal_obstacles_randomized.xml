@@ -35,7 +35,7 @@
     
     <worldbody>
         <!-- Add a floor/plane -->
-        <geom name="floor" type="plane" size="20 20 0.1" pos="0 0 0" material="floor" />
+        <geom name="floor" type="plane" size="20 20 0.1" pos="0 0 0" material="floor" group="2"/>
 
          <!-- Add a light above the robot -->
         <light name="spotlight" mode="targetbody" target="chassis_link" pos="0 0 2.0" dir="0 0 -1" 
@@ -65,7 +65,7 @@
                 
                 <body name="rear_left_wheel_link" pos="-0.131 0.187795 0.0345">
                     <joint name="rear_left_wheel" type="hinge" axis="0 1 0" damping="0.1"/>
-                    <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" group="2"/>
+                    <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" />
                     <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001" group="2"/>
                     <inertial pos="0 0 0" mass="0.477" diaginertia="0.0013 0.0024 0.0013" />
                 </body>
@@ -88,7 +88,7 @@
                 
                 <!-- IMU Link -->
                 <body name="imu_link">
-                    <inertial pos="0 0 0" mass="0.001" diaginertia="1e-09 1e-09 1e-09" group="2"/>
+                    <inertial pos="0 0 0" mass="0.001" diaginertia="1e-09 1e-09 1e-09" />
                 </body>
                 
                 <!-- NAVSAT Link -->
@@ -142,32 +142,35 @@
 
         <!-- Walls Enclosing the Robot [-5, 5] 10x10 Arena -->
         <body name="wall1" pos="5 0 0.5">
-            <geom type="box" size="0.1 5 0.5" material="wallColor" group="1"/>
+            <geom type="box" size="0.1 5 0.5" material="wallColor" />
         </body>
         <body name="wall2" pos="-5 0 0.5">
-            <geom type="box" size="0.1 5 0.5" material="wallColor" group="1"/>
+            <geom type="box" size="0.1 5 0.5" material="wallColor" />
         </body>
         <body name="wall3" pos="0 5 0.5">
-            <geom type="box" size="5 0.1 0.5" material="wallColor" group="1"/>
+            <geom type="box" size="5 0.1 0.5" material="wallColor" />
         </body>
         <body name="wall4" pos="0 -5 0.5">
-            <geom type="box" size="5 0.1 0.5" material="wallColor" group="1"/>
+            <geom type="box" size="5 0.1 0.5" material="wallColor" />
         </body>
     
         <!--START_OBSTACLES-->
-		<body name="obstacle1" pos="2.060 -0.715 0.795">
-			<geom type="cylinder" size="0.30 1.59" material="obstacleColor" group="1"/>
+        <body name="obstacle1" pos="2 0 0.5">
+            <geom type="box" size="0.5 0.5 0.5" material="obstacleColor" />
+        </body>
+        <body name="obstacle2" pos="0 3 0.5">
+            <geom type="cylinder" size="0.5 1" material="obstacleColor" />
+        </body>
+        <body name="obstacle3" pos="-3 -2 0.5">
+            <geom type="sphere" size="0.7" material="obstacleColor" />
+        </body>
+        <!--END_OBSTACLES-->
+
+        <!--START_GOAL-->
+		<body name="goal" pos="2.179 3.478 0.125">
+			<geom type="box" size="0.25 0.25 0.25" material="green"/>
 		</body>
-		<body name="obstacle2" pos="-4.726 2.903 0.180">
-			<geom type="cylinder" size="0.67 0.36" material="obstacleColor" group="1"/>
-		</body>
-		<body name="obstacle3" pos="4.538 2.218 0.870">
-			<geom type="sphere" size="0.87" material="obstacleColor" group="1"/>
-		</body>
-		<body name="obstacle4" pos="-4.924 -4.159 0.600">
-			<geom type="sphere" size="0.60" material="obstacleColor" group="1"/>
-		</body>
-		<!--END_OBSTACLES-->
+		<!--END_GOAL-->
 
     </worldbody>
     

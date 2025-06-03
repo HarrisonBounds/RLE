@@ -215,7 +215,8 @@ class Jackal_Env(gym.Env):
         # Generate a new XML file with randomized obstacles
         randomize_environment(
             env_path=self.xml_file,
-            max_num_obstacles=10,  # Adjust as needed or parameterize
+            min_num_obstacles=3,  # Adjust as needed or parameterize
+            max_num_obstacles=10  # Adjust as needed or parameterize
         )
 
         #Get initial positions for displacement 
@@ -239,6 +240,16 @@ class Jackal_Env(gym.Env):
                 max_range=self.lidar_max_range
                 # return_type='ranges'  # Just return ranges for the gym environment
             )
+
+        # Reassign the geometry IDs
+        self.robot_geom_ids = []
+        self.obstacle_geom_ids = []
+        for i in range(self.model.ngeom):
+            if self.model.geom_group[i] == 2:
+                if i != self.floor_geom_id:
+                    self.robot_geom_ids.append(i)
+            elif self.model.geom_group[i] == 1:
+                self.obstacle_geom_ids.append(i)
 
         # Reset the viewer if it exists
         if self.viewer:

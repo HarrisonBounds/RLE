@@ -102,7 +102,19 @@ class Jackal_Env(gym.Env):
         print(f"robot geom ids: {self.robot_geom_ids}")
         print(f"floor geom id: {self.floor_geom_id}")
 
+        # Get goal position name="goal"
+        self.goal_position = self.assign_goal_position()
+        print(f"Goal position: {self.goal_position}")
+
         self.roll_pitch_threshold = 0.6
+
+    def assign_goal_position(self):
+        self.goal_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_GEOM, "goal")
+        if self.goal_id == -1:
+            raise ValueError(
+                "Goal geometry not found in the model. Ensure it is defined in the XML.")
+        return self.data.geom_xpos[self.goal_id]
 
     def _check_collision(self, group1, group2):
         for i in range(self.data.ncon):
@@ -200,11 +212,11 @@ class Jackal_Env(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
 
-        # Generate a new XML file with randomized obstacles
+        # Generate a new XML file with randomized obstacles and goal position
         randomize_environment(
             env_path=self.xml_file,
             min_num_obstacles=3,  # Adjust as needed or parameterize
-            max_num_obstacles=10  # Adjust as needed or parameterize
+            max_num_obstacles=8  # Adjust as needed or parameterize
         )
 
         #Get initial positions for displacement 
@@ -242,6 +254,9 @@ class Jackal_Env(gym.Env):
                 self.obstacle_geom_ids.append(i)
             elif self.model.geom_group[i] == 3:
                 self.goal_id.append(i)
+
+        # Reassign the goal position
+        self.goal_position = self.assign_goal_position()
 
         # Reset the viewer if it exists
         if self.viewer:

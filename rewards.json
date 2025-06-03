@@ -2,6 +2,6 @@
     "distance_reward": 5.0,
     "goal_reached": 50.0,
     "collision_penalty": -10.0,
-    "time_step_penalty": -0.1,
-    "displacement_penalty": -0.1
+    "time_step_penalty": -0.01,
+    "displacement_penalty": -0.005
 }

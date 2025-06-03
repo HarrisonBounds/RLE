@@ -101,6 +101,8 @@ class Jackal_Env(gym.Env):
         print(f"obstacle geom ids: {self.obstacle_geom_ids}")
         print(f"robot geom ids: {self.robot_geom_ids}")
         print(f"floor geom id: {self.floor_geom_id}")
+        print(f"goal geom id: {self.goal_id}")
+
 
         self.goal_position = self.extract_goal_position()
         print(f"Goal position: {self.goal_position}")
@@ -508,6 +510,10 @@ class Jackal_Env(gym.Env):
         reward += total_displacement * self.rewards["displacement_penalty"]
 
         # Reward inverse distance to goal
+        goal_x, goal_y = self.goal_position[:2]
+        distance_to_goal = np.sqrt((current_x - goal_x)**2 + (current_y - goal_y)**2)
+
+        reward += (1/distance_to_goal) * self.rewards["distance_reward"]
 
         # Terminate if goal is reached
         reached_goal = self._check_collision(self.robot_geom_ids, self.goal_id)

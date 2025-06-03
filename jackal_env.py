@@ -244,12 +244,16 @@ class Jackal_Env(gym.Env):
         # Reassign the geometry IDs
         self.robot_geom_ids = []
         self.obstacle_geom_ids = []
+        self.goal_id = []
+        
         for i in range(self.model.ngeom):
             if self.model.geom_group[i] == 2:
                 if i != self.floor_geom_id:
                     self.robot_geom_ids.append(i)
             elif self.model.geom_group[i] == 1:
                 self.obstacle_geom_ids.append(i)
+            elif self.model.geom_group[i] == 3:
+                self.goal_id.append(i)
 
         # Reset the viewer if it exists
         if self.viewer:
@@ -260,9 +264,6 @@ class Jackal_Env(gym.Env):
         mujoco.mj_resetData(self.model, self.data)
         mujoco.mj_forward(self.model, self.data)
 
-        # Reset previous position to the initial position
-        self.prev_x = self.data.qpos[0]
-        self.prev_y = self.data.qpos[1]
 
         # Get the basic observation
         state_obs = np.concatenate([self.data.qpos.flat, self.data.qvel.flat])

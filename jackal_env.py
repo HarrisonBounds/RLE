@@ -113,7 +113,7 @@ class Jackal_Env(gym.Env):
         )
         if self.goal_geom_id == -1:
             raise ValueError("Could not find geom named 'goal_geom'")
-        self.goal_position = self.data.geom_xpos[self.goal_geom_id]
+        self.goal_position = self.data.geom_xpos[self.goal_geom_id].copy()
 
     def _check_collision(self, group1, group2):
         for i in range(self.data.ncon):

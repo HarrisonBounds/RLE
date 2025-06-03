@@ -9,7 +9,7 @@ END_TAG = "<!--END_OBSTACLES-->"
 # Template for an obstacle in the XML file
 OBSTACLE_TEMPLATE = (
     "\t\t<body name=\"obstacle{obstID}\" pos=\"{pX:.3f} {pY:.3f} {pZ:.3f}\">\n"
-    "\t\t\t<geom type=\"{obstType}\" size=\"{size}\" material=\"obstacleColor\" />\n"
+    "\t\t\t<geom type=\"{obstType}\" size=\"{size}\" material=\"obstacleColor\" group=\"1\"/>\n"
     "\t\t</body>"
 )
 

@@ -44,56 +44,56 @@
         <body name="base_link" pos="0 0 0.067">
             <freejoint name="root_joint"/>
             <body name="chassis_link" pos="0 0 0">
-                <geom type="mesh" mesh="jackal-base" material="dark_grey" pos="0 0 -0.067" euler="0 1.5708 1.5708" />
-                <geom type="box" size="0.21 0.155 0.092" pos="0 0 0.092" material="dark_grey" rgba="0.2 0.2 0.2 0.2" />
+                <geom type="mesh" mesh="jackal-base" material="dark_grey" pos="0 0 -0.067" euler="0 1.5708 1.5708" group="2"/>
+                <geom type="box" size="0.21 0.155 0.092" pos="0 0 0.092" material="dark_grey" rgba="0.2 0.2 0.2 0.2" group="2"/>
                 <inertial pos="0.012 0.002 0.067" mass="16.523" diaginertia="0.3136 0.3922 0.4485" />
                 
                 <!-- Wheels -->
                 <body name="front_left_wheel_link" pos="0.131 0.187795 0.0345">
                     <joint name="front_left_wheel" type="hinge" axis="0 1 0" damping="0.1"/>
-                    <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" />
-                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001" />
+                    <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" group="2"/>
+                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001" group="2"/>
                     <inertial pos="0 0 0" mass="0.477" diaginertia="0.0013 0.0024 0.0013" />
                 </body>
                 
                 <body name="front_right_wheel_link" pos="0.131 -0.187795 0.0345">
                     <joint name="front_right_wheel" type="hinge" axis="0 1 0" damping="0.1"/>
-                    <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" />
-                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001" />
+                    <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" group="2"/>
+                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001" group="2"/>
                     <inertial pos="0 0 0" mass="0.477" diaginertia="0.0013 0.0024 0.0013" />
                 </body>
                 
                 <body name="rear_left_wheel_link" pos="-0.131 0.187795 0.0345">
                     <joint name="rear_left_wheel" type="hinge" axis="0 1 0" damping="0.1"/>
-                    <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" />
-                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001" />
+                    <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" group="2"/>
+                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001" group="2"/>
                     <inertial pos="0 0 0" mass="0.477" diaginertia="0.0013 0.0024 0.0013" />
                 </body>
                 
                 <body name="rear_right_wheel_link" pos="-0.131 -0.187795 0.0345">
                     <joint name="rear_right_wheel" type="hinge" axis="0 1 0" damping="0.1"/>
-                    <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" />
-                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001"/>
+                    <geom type="mesh" mesh="jackal-wheel" material="black" euler="1.5708 0 0" group="2"/>
+                    <geom type="cylinder" size="0.098 0.02" euler="1.5708 0 0" material="black" friction="1 0.005 0.0001" group="2"/>
                     <inertial pos="0 0 0" mass="0.477" diaginertia="0.0013 0.0024 0.0013" />
                 </body>
                 
                 <!-- Fenders -->
                 <body name="front_fender_link" pos="0 0 0">
-                    <geom type="mesh" mesh="jackal-fender" material="yellow" />
+                    <geom type="mesh" mesh="jackal-fender" material="yellow" group="2"/>
                 </body>
                 
                 <body name="rear_fender_link" pos="0 0 0" quat="0 0 0 1">
-                  <geom type="mesh" mesh="jackal-fender" material="yellow" />
+                  <geom type="mesh" mesh="jackal-fender" material="yellow" group="2"/>
                 </body>
                 
                 <!-- IMU Link -->
                 <body name="imu_link">
-                    <inertial pos="0 0 0" mass="0.001" diaginertia="1e-09 1e-09 1e-09" />
+                    <inertial pos="0 0 0" mass="0.001" diaginertia="1e-09 1e-09 1e-09" group="2"/>
                 </body>
                 
                 <!-- NAVSAT Link -->
                 <body name="navsat_link" pos="-0.180 0.126 0.1815">
-                    <geom type="cylinder" size="0.026 0.008" pos="0 0 0.008" material="black" />
+                    <geom type="cylinder" size="0.026 0.008" pos="0 0 0.008" material="black" group="2"/>
                 </body>
                 
                 <!-- Mounts -->
@@ -101,33 +101,33 @@
                     <!-- VLP16 Mount -->
                     <body name="mid_vlp16_mount" pos="0 0 0">
                         <body name="mid_vlp16_leg1" pos="0.05 0.05 0">
-                            <geom type="cylinder" size="0.003 0.05" pos="0 0 0.05" material="white" />
+                            <geom type="cylinder" size="0.003 0.05" pos="0 0 0.05" material="white" group="2"/>
                         </body>
                         
                         <body name="mid_vlp16_leg2" pos="0.05 -0.05 0">
-                            <geom type="cylinder" size="0.003 0.05" pos="0 0 0.05" material="white" />
+                            <geom type="cylinder" size="0.003 0.05" pos="0 0 0.05" material="white" group="2"/>
                         </body>
                         
                         <body name="mid_vlp16_leg3" pos="-0.05 0.05 0">
-                            <geom type="cylinder" size="0.003 0.05" pos="0 0 0.05" material="white" />
+                            <geom type="cylinder" size="0.003 0.05" pos="0 0 0.05" material="white" group="2"/>
                         </body>
                         
                         <body name="mid_vlp16_leg4" pos="-0.05 -0.05 0">
-                            <geom type="cylinder" size="0.003 0.05" pos="0 0 0.05" material="white" />
+                            <geom type="cylinder" size="0.003 0.05" pos="0 0 0.05" material="white" group="2"/>
                         </body>
                         
                         <body name="mid_vlp16_plate" pos="0 0 0.1">
-                            <geom type="box" size="0.05 0.05 0.001" pos="0 0 -0.001" material="black" />
+                            <geom type="box" size="0.05 0.05 0.001" pos="0 0 -0.001" material="black" group="2"/>
                             
                             <!-- Velodyne LiDAR -->
                             <body name="velodyne_base_link" pos="0 0 0">
-                                <geom type="mesh" mesh="vlp16_base_1" />
-                                <geom type="mesh" mesh="vlp16_base_2" />
-                                <geom type="cylinder" size="0.0516 0.03585" pos="0 0 0.03585" />
+                                <geom type="mesh" mesh="vlp16_base_1" group="2"/>
+                                <geom type="mesh" mesh="vlp16_base_2" group="2"/>
+                                <geom type="cylinder" size="0.0516 0.03585" pos="0 0 0.03585" group="2"/>
                                 <inertial pos="0 0 0" mass="0.1" diaginertia="0.1 0.1 0.1" />
                                 
                                 <body name="velodyne" pos="0 0 0.0377">
-                                    <geom type="mesh" mesh="vlp16_scan" pos="0 0 -0.0377" />
+                                    <geom type="mesh" mesh="vlp16_scan" pos="0 0 -0.0377" group="2"/>
                                     <inertial pos="0 0 0" mass="0.1" diaginertia="0.1 0.1 0.1" />
                                 </body>
                             </body>
@@ -142,30 +142,30 @@
 
         <!-- Walls Enclosing the Robot [-5, 5] 10x10 Arena -->
         <body name="wall1" pos="5 0 0.5">
-            <geom type="box" size="0.1 5 0.5" material="wallColor" />
+            <geom type="box" size="0.1 5 0.5" material="wallColor" group="1"/>
         </body>
         <body name="wall2" pos="-5 0 0.5">
-            <geom type="box" size="0.1 5 0.5" material="wallColor" />
+            <geom type="box" size="0.1 5 0.5" material="wallColor" group="1"/>
         </body>
         <body name="wall3" pos="0 5 0.5">
-            <geom type="box" size="5 0.1 0.5" material="wallColor" />
+            <geom type="box" size="5 0.1 0.5" material="wallColor" group="1"/>
         </body>
         <body name="wall4" pos="0 -5 0.5">
-            <geom type="box" size="5 0.1 0.5" material="wallColor" />
+            <geom type="box" size="5 0.1 0.5" material="wallColor" group="1"/>
         </body>
     
         <!--START_OBSTACLES-->
-		<body name="obstacle1" pos="4.265 -4.467 0.575">
-			<geom type="cylinder" size="0.69 1.15" material="obstacleColor" />
+		<body name="obstacle1" pos="2.060 -0.715 0.795">
+			<geom type="cylinder" size="0.30 1.59" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle2" pos="3.770 4.357 0.530">
-			<geom type="sphere" size="0.53" material="obstacleColor" />
+		<body name="obstacle2" pos="-4.726 2.903 0.180">
+			<geom type="cylinder" size="0.67 0.36" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle3" pos="-2.167 2.552 0.410">
-			<geom type="box" size="1.51 0.88 0.82" material="obstacleColor" />
+		<body name="obstacle3" pos="4.538 2.218 0.870">
+			<geom type="sphere" size="0.87" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle4" pos="2.489 3.934 0.570">
-			<geom type="sphere" size="0.57" material="obstacleColor" />
+		<body name="obstacle4" pos="-4.924 -4.159 0.600">
+			<geom type="sphere" size="0.60" material="obstacleColor" group="1"/>
 		</body>
 		<!--END_OBSTACLES-->
 

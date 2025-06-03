@@ -156,28 +156,34 @@
         </body>
     
         <!--START_OBSTACLES-->
-		<body name="obstacle1" pos="4.826 4.295 0.370">
-			<geom type="cylinder" size="0.62 0.74" material="obstacleColor" group="1"/>
+		<body name="obstacle1" pos="1.782 3.323 0.165">
+			<geom type="box" size="1.03 0.42 0.33" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle2" pos="3.641 -0.371 0.280">
-			<geom type="cylinder" size="0.36 0.56" material="obstacleColor" group="1"/>
+		<body name="obstacle2" pos="2.612 4.157 0.270">
+			<geom type="sphere" size="0.27" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle3" pos="-4.124 1.293 0.280">
-			<geom type="sphere" size="0.28" material="obstacleColor" group="1"/>
+		<body name="obstacle3" pos="-1.659 2.976 0.225">
+			<geom type="box" size="1.14 0.81 0.45" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle4" pos="-2.686 -4.523 0.910">
-			<geom type="sphere" size="0.91" material="obstacleColor" group="1"/>
+		<body name="obstacle4" pos="0.395 -3.265 0.460">
+			<geom type="sphere" size="0.46" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle5" pos="2.245 4.127 0.225">
-			<geom type="cylinder" size="0.10 0.45" material="obstacleColor" group="1"/>
+		<body name="obstacle5" pos="2.803 0.799 0.620">
+			<geom type="cylinder" size="0.21 1.24" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle6" pos="-3.075 -2.502 0.155">
-			<geom type="cylinder" size="0.56 0.31" material="obstacleColor" group="1"/>
+		<body name="obstacle6" pos="-3.061 -1.619 0.130">
+			<geom type="box" size="1.16 0.66 0.26" material="obstacleColor" group="1"/>
+		</body>
+		<body name="obstacle7" pos="-2.347 -2.846 0.840">
+			<geom type="sphere" size="0.84" material="obstacleColor" group="1"/>
+		</body>
+		<body name="obstacle8" pos="0.936 -3.376 0.210">
+			<geom type="box" size="0.81 0.59 0.42" material="obstacleColor" group="1"/>
 		</body>
 		<!--END_OBSTACLES-->
 
         <!--START_GOAL-->
-		<body name="goal" pos="-4.035 -0.395 0.125">
+		<body name="goal" pos="-1.965 -4.321 0.125">
 			<geom name="goal_geom" type="box" size="0.25 0.25 0.25" material="green"/>
 		</body>
 		<!--END_GOAL-->

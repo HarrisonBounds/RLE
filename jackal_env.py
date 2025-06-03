@@ -78,14 +78,15 @@ class Jackal_Env(gym.Env):
         with open('rewards.json', 'r') as file:
             self.rewards = json.load(file)
 
-        self.prev_x = 0.0
-        self.prev_y = 0.0
+        self.initial_x = 0.0  
+        self.initial_y = 0.0
 
         self.floor_geom_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
 
         self.robot_geom_ids = []
         self.obstacle_geom_ids = []
+        self.goal_id = []
 
         for i in range(self.model.ngeom):
             if self.model.geom_group[i] == 2:
@@ -93,6 +94,8 @@ class Jackal_Env(gym.Env):
                     self.robot_geom_ids.append(i)
             elif self.model.geom_group[i] == 1:
                 self.obstacle_geom_ids.append(i)
+            elif self.model.geom_group[i] == 3:
+                self.goal_id.append(i)
 
         # Print for debugging:
         print(f"obstacle geom ids: {self.obstacle_geom_ids}")
@@ -114,6 +117,7 @@ class Jackal_Env(gym.Env):
                 return True
 
         return False
+    
 
     def _check_roll_pitch(self):
         quaternion = self.data.qpos[3:7]  # Get the quaternion (qw, qx, qy, qz)
@@ -128,6 +132,7 @@ class Jackal_Env(gym.Env):
                 f"TERMINATION: Roll/Pitch too extreme! Roll: {np.degrees(roll):.2f} deg, Pitch: {np.degrees(pitch):.2f} deg")
             return True
         return False
+    
 
     def step(self, action):
         # Initialize reward FIRST
@@ -172,43 +177,8 @@ class Jackal_Env(gym.Env):
                 lidar_obs[0, :30],    # Left-front
                 lidar_obs[0, 330:360]  # Right-front
             ])
-            min_frontal_distance = np.min(frontal_sector)
-
-            # Progressive penalty for frontal obstacles
-            danger_zone = 1.0
-            if min_frontal_distance < danger_zone:
-                print(f"min_frontal_dist: {min_frontal_distance}")
-                # Penalty increases as distance decreases
-                obstacle_penalty = self.rewards["lidar_proximity"] * \
-                    (1/min_frontal_distance)
-                reward += obstacle_penalty
-
-                # Reward turning actions when obstacles are near
-                turn_reward = abs(
-                    angular_vel) * self.rewards["obstacle_turn"] * (1/min_frontal_distance)
-                reward += turn_reward
-
-                # Reduce forward reward when obstacles are near
-                x_vel_reward = x_vel * \
-                    self.rewards["forward_velocity"] * \
-                    min_frontal_distance/danger_zone
-                reward += x_vel_reward
-            else:
-                # Normal forward motion reward when no obstacles
-                reward += x_vel * self.rewards["forward_velocity"]
         else:
             observation = state_obs.astype(np.float32)
-
-        # Anti-spinning penalty
-        spinning_threshold = 0.5  # rad/s
-        min_displacement = 0.05  # meters per step to consider it meaningful movement
-
-        if abs(angular_vel) > spinning_threshold:
-            spinning_penalty = self.rewards["spinning_penalty"] * \
-                (abs(angular_vel) - spinning_threshold)
-            reward += spinning_penalty
-            # print(f"Angular Velocity: {abs(angular_vel)}")
-            # info['spinning_penalty'] = spinning_penalty
 
         if self._check_collision(self.robot_geom_ids, self.obstacle_geom_ids):
             reward += self.rewards["collision"]
@@ -218,16 +188,24 @@ class Jackal_Env(gym.Env):
             reward += self.rewards["collision"]
             terminated = True
 
-        if abs(angular_vel) > 5:
-            reward += self.rewards["collision"]
+        # Rewards
+        #Time step penalty
+        reward += self.rewards["time_step"]
+
+        # Displacement penalty (dont take too long for a path to goal)
+        total_displacement = np.sqrt(
+            (current_x - self.initial_x)**2 + (current_y - self.initial_y)**2
+        )
+        reward += total_displacement * self.rewards["displacement_penalty"]
+
+        #Reward inverse distance to goal
+        
+
+        # Terminate if goal is reached
+        reached_goal = self._check_collision(self.robot_geom_ids, self.goal_id)
+        if reached_goal:
+            reward += self.rewards["goal_reached"]
             terminated = True
-
-        reward += abs(angular_vel) * self.rewards["angular_velocity"]
-        reward += displacement * self.rewards["displacement"]
-
-        # Additional backward penalty
-        if self.data.qvel[0] <= 0:
-            reward += self.data.qvel[0] * self.rewards["backward_velocity"]
 
         return observation, reward, terminated, truncated, info
 
@@ -239,6 +217,10 @@ class Jackal_Env(gym.Env):
             env_path=self.xml_file,
             max_num_obstacles=10,  # Adjust as needed or parameterize
         )
+
+        #Get initial positions for displacement 
+        self.initial_x = self.data.qpos[0]
+        self.initial_y = self.data.qpos[1]
 
         # Load the new model
         self.model = mujoco.MjModel.from_xml_path(self.xml_file)

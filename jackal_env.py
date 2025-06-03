@@ -12,7 +12,7 @@ from randomize_obstacles import randomize_environment
 
 
 class Jackal_Env(gym.Env):
-    def __init__(self, xml_file="jackal_velodyne.xml", render_mode=None,
+    def __init__(self, xml_file="jackal_obstacles.xml", render_mode=None,
                  use_lidar=True, num_lidar_rays_h=360, num_lidar_rays_v=16,
                  lidar_max_range=10.0):
         super().__init__()
@@ -78,7 +78,7 @@ class Jackal_Env(gym.Env):
         with open('rewards.json', 'r') as file:
             self.rewards = json.load(file)
 
-        self.initial_x = 0.0  
+        self.initial_x = 0.0
         self.initial_y = 0.0
 
         self.floor_geom_id = mujoco.mj_name2id(
@@ -102,19 +102,18 @@ class Jackal_Env(gym.Env):
         print(f"robot geom ids: {self.robot_geom_ids}")
         print(f"floor geom id: {self.floor_geom_id}")
 
-        # Get goal position name="goal"
         self.goal_position = self.assign_goal_position()
         print(f"Goal position: {self.goal_position}")
 
         self.roll_pitch_threshold = 0.6
 
     def assign_goal_position(self):
-        self.goal_id = mujoco.mj_name2id(
-            self.model, mujoco.mjtObj.mjOBJ_GEOM, "goal")
-        if self.goal_id == -1:
-            raise ValueError(
-                "Goal geometry not found in the model. Ensure it is defined in the XML.")
-        return self.data.geom_xpos[self.goal_id]
+        self.goal_geom_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_GEOM, "goal_geom"
+        )
+        if self.goal_geom_id == -1:
+            raise ValueError("Could not find geom named 'goal_geom'")
+        self.goal_position = self.data.geom_xpos[self.goal_geom_id]
 
     def _check_collision(self, group1, group2):
         for i in range(self.data.ncon):
@@ -129,7 +128,6 @@ class Jackal_Env(gym.Env):
                 return True
 
         return False
-    
 
     def _check_roll_pitch(self):
         quaternion = self.data.qpos[3:7]  # Get the quaternion (qw, qx, qy, qz)
@@ -144,7 +142,6 @@ class Jackal_Env(gym.Env):
                 f"TERMINATION: Roll/Pitch too extreme! Roll: {np.degrees(roll):.2f} deg, Pitch: {np.degrees(pitch):.2f} deg")
             return True
         return False
-    
 
     def step(self, action):
         # Initialize reward FIRST
@@ -201,7 +198,7 @@ class Jackal_Env(gym.Env):
             terminated = True
 
         # Rewards
-        #Time step penalty
+        # Time step penalty
         reward += self.rewards["time_step"]
 
         # Displacement penalty (dont take too long for a path to goal)
@@ -210,8 +207,7 @@ class Jackal_Env(gym.Env):
         )
         reward += total_displacement * self.rewards["displacement_penalty"]
 
-        #Reward inverse distance to goal
-        
+        # Reward inverse distance to goal
 
         # Terminate if goal is reached
         reached_goal = self._check_collision(self.robot_geom_ids, self.goal_id)
@@ -231,7 +227,7 @@ class Jackal_Env(gym.Env):
             max_num_obstacles=8  # Adjust as needed or parameterize
         )
 
-        #Get initial positions for displacement 
+        # Get initial positions for displacement
         self.initial_x = self.data.qpos[0]
         self.initial_y = self.data.qpos[1]
 
@@ -257,7 +253,7 @@ class Jackal_Env(gym.Env):
         self.robot_geom_ids = []
         self.obstacle_geom_ids = []
         self.goal_id = []
-        
+
         for i in range(self.model.ngeom):
             if self.model.geom_group[i] == 2:
                 if i != self.floor_geom_id:
@@ -278,7 +274,6 @@ class Jackal_Env(gym.Env):
         # Reset the model and data
         mujoco.mj_resetData(self.model, self.data)
         mujoco.mj_forward(self.model, self.data)
-
 
         # Get the basic observation
         state_obs = np.concatenate([self.data.qpos.flat, self.data.qvel.flat])

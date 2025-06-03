@@ -14,6 +14,7 @@
         <material name="yellow" rgba="0.8 0.8 0.0 1.0" />
         <material name="black" rgba="0.15 0.15 0.15 1.0" />
         <material name="white" rgba="1.0 1.0 1.0 1.0" />
+        <material name="green" rgba="0.0 1.0 0.0 1.0" />
         <material name="floor" rgba="0.5 0.5 0.5 1.0" />
         <material name="obstacleColor" rgba="0.8 0.1 0.1 1.0" />
         <material name="wallColor" rgba="1.0 0.5 0.0 1.0" />
@@ -168,7 +169,7 @@
 
         <!--START_GOAL-->
         <body name="goal" pos="2 0 0.125">
-            <geom type="box" size="0.5 0.5 0.5" material="green" />
+            <geom name="goal_geom" type="box" size="0.5 0.5 0.5" material="green" />
         </body>
         <!--END_GOAL-->
 

@@ -14,6 +14,7 @@
         <material name="yellow" rgba="0.8 0.8 0.0 1.0" />
         <material name="black" rgba="0.15 0.15 0.15 1.0" />
         <material name="white" rgba="1.0 1.0 1.0 1.0" />
+        <material name="green" rgba="0.0 1.0 0.0 1.0" />
         <material name="floor" rgba="0.5 0.5 0.5 1.0" />
         <material name="obstacleColor" rgba="0.8 0.1 0.1 1.0" />
         <material name="wallColor" rgba="1.0 0.5 0.0 1.0" />
@@ -155,20 +156,32 @@
         </body>
     
         <!--START_OBSTACLES-->
-        <body name="obstacle1" pos="2 0 0.5">
-            <geom type="box" size="0.5 0.5 0.5" material="obstacleColor" />
-        </body>
-        <body name="obstacle2" pos="0 3 0.5">
-            <geom type="cylinder" size="0.5 1" material="obstacleColor" />
-        </body>
-        <body name="obstacle3" pos="-3 -2 0.5">
-            <geom type="sphere" size="0.7" material="obstacleColor" />
-        </body>
-        <!--END_OBSTACLES-->
+		<body name="obstacle1" pos="3.962 1.819 0.120">
+			<geom type="sphere" size="0.12" material="obstacleColor" group="1"/>
+		</body>
+		<body name="obstacle2" pos="2.185 -1.665 0.370">
+			<geom type="box" size="1.91 1.18 0.74" material="obstacleColor" group="1"/>
+		</body>
+		<body name="obstacle3" pos="4.996 -2.007 0.955">
+			<geom type="cylinder" size="0.39 1.91" material="obstacleColor" group="1"/>
+		</body>
+		<body name="obstacle4" pos="2.869 -4.779 0.710">
+			<geom type="sphere" size="0.71" material="obstacleColor" group="1"/>
+		</body>
+		<body name="obstacle5" pos="0.775 -4.972 0.550">
+			<geom type="cylinder" size="0.52 1.10" material="obstacleColor" group="1"/>
+		</body>
+		<body name="obstacle6" pos="-2.615 0.220 0.570">
+			<geom type="cylinder" size="0.39 1.14" material="obstacleColor" group="1"/>
+		</body>
+		<body name="obstacle7" pos="-2.361 -3.504 0.230">
+			<geom type="box" size="1.39 0.91 0.46" material="obstacleColor" group="1"/>
+		</body>
+		<!--END_OBSTACLES-->
 
         <!--START_GOAL-->
-		<body name="goal" pos="2.179 3.478 0.125">
-			<geom type="box" size="0.25 0.25 0.25" material="green"/>
+		<body name="goal" pos="0.618 4.711 0.125">
+			<geom name="goal_geom" type="box" size="0.25 0.25 0.25" material="green"/>
 		</body>
 		<!--END_GOAL-->
 

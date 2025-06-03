@@ -150,16 +150,8 @@ class Jackal_Env(gym.Env):
         truncated = False
         info = {}
 
-        x_vel = self.data.qvel[0]
-        angular_vel = self.data.qvel[5]
         current_x = self.data.qpos[0]
         current_y = self.data.qpos[1]
-
-        # Calculate actual displacement
-        displacement = np.sqrt((current_x - self.prev_x)
-                               ** 2 + (current_y - self.prev_y)**2)
-        self.prev_x = current_x
-        self.prev_y = current_y
 
         assert len(action) == 2, "Action should be [left_speed, right_speed]"
 
@@ -181,11 +173,7 @@ class Jackal_Env(gym.Env):
                 'state': state_obs.astype(np.float32),
                 'lidar': lidar_obs.astype(np.float32)
             }
-
-            frontal_sector = np.concatenate([
-                lidar_obs[0, :30],    # Left-front
-                lidar_obs[0, 330:360]  # Right-front
-            ])
+            
         else:
             observation = state_obs.astype(np.float32)
 

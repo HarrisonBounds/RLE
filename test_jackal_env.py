@@ -83,7 +83,7 @@ try:
         batch_steps = 0
 
         while batch_steps < STEPS_PER_BATCH:
-            # print(f"Global step: {global_step}")
+            #print(f"Global step: {global_step}")
 
             if global_step >= MAX_STEPS:
                 truncated = True

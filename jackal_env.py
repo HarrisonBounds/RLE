@@ -153,6 +153,7 @@ class Jackal_Env(gym.Env):
 
         current_x = self.data.qpos[0]
         current_y = self.data.qpos[1]
+        ang_vel = self.data.qvel[5]
 
         assert len(action) == 2, "Action should be [left_speed, right_speed]"
 
@@ -201,6 +202,10 @@ class Jackal_Env(gym.Env):
         distance_to_goal = np.sqrt((current_x - goal_x)**2 + (current_y - goal_y)**2) + 1e-6
 
         reward += (1/distance_to_goal) * self.rewards["distance_reward"]
+
+        # Penalize too much angular velocity
+        if ang_vel > 3:
+            reward += self.rewards["max_ang_vel_penalty"]
 
         # Terminate if goal is reached
         if distance_to_goal < 0.4:

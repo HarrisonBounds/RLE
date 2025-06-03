@@ -17,7 +17,7 @@ OBSTACLE_TEMPLATE = (
 
 GOAL_TEMPLATE = (
     "\t\t<body name=\"goal\" pos=\"{pX:.3f} {pY:.3f} 0.125\">\n"
-    "\t\t\t<geom name=\"goal_geom\" type=\"box\" size=\"0.25 0.25 0.25\" material=\"green\" group=\"3\"/>\n"
+    "\t\t\t<geom name=\"goal_geom\" type=\"box\" size=\"0.25 0.25 0.25\" material=\"green\" group=\"2\"/>\n"
     "\t\t</body>"
 )
 

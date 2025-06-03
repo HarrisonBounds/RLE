@@ -237,7 +237,8 @@ class Jackal_Env(gym.Env):
         # Generate a new XML file with randomized obstacles
         randomize_environment(
             env_path=self.xml_file,
-            max_num_obstacles=10,  # Adjust as needed or parameterize
+            min_num_obstacles=3,  # Adjust as needed or parameterize
+            max_num_obstacles=10  # Adjust as needed or parameterize
         )
 
         # Load the new model

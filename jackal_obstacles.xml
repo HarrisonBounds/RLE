@@ -166,6 +166,12 @@
         </body>
         <!--END_OBSTACLES-->
 
+        <!--START_GOAL-->
+        <body name="goal" pos="2 0 0.125">
+            <geom type="box" size="0.5 0.5 0.5" material="green" />
+        </body>
+        <!--END_GOAL-->
+
     </worldbody>
     
     <actuator>

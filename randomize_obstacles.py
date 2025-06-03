@@ -5,11 +5,19 @@ import time
 # Tags in XML to identify where to insert generated obstacles
 START_TAG = "<!--START_OBSTACLES-->"
 END_TAG = "<!--END_OBSTACLES-->"
+GOAL_START_TAG = "<!--START_GOAL-->"
+GOAL_END_TAG = "<!--END_GOAL-->"
 
 # Template for an obstacle in the XML file
 OBSTACLE_TEMPLATE = (
     "\t\t<body name=\"obstacle{obstID}\" pos=\"{pX:.3f} {pY:.3f} {pZ:.3f}\">\n"
     "\t\t\t<geom type=\"{obstType}\" size=\"{size}\" material=\"obstacleColor\" group=\"1\"/>\n"
+    "\t\t</body>"
+)
+
+GOAL_TEMPLATE = (
+    "\t\t<body name=\"goal\" pos=\"{pX:.3f} {pY:.3f} 0.125\">\n"
+    "\t\t\t<geom type=\"box\" size=\"0.25 0.25 0.25\" material=\"green\"/>\n"
     "\t\t</body>"
 )
 
@@ -193,6 +201,31 @@ def generate_random_position(area_size: tuple, type: str, size: str, obstacles: 
             return pos
 
 
+def generate_random_goal(area_size, obstacles: list):
+    min_x, min_y, max_x, max_y = area_size
+    # Generate a random X and Y position for the goal that doesn't intersect with any other
+    # obstacles and stays away from the robot area
+
+    def in_robot_area(x, y, robot_area=2) -> bool:
+        return (x**2 + y**2) < robot_area**2
+
+    def intersects_with_obstacles(x, y, obstacles):
+        # Check if the goal position intersects with any existing obstacles
+        for obst in obstacles:
+            if obst.intersects(Obstacle(-1, "box", "0.25 0.25 0.25", (x, y, 0.125))):
+                return True
+        return False
+
+    random_x = random.uniform(min_x, max_x)
+    random_y = random.uniform(min_y, max_y)
+    while True:
+        if in_robot_area(random_x, random_y) or intersects_with_obstacles(random_x, random_y, obstacles):
+            random_x = random.uniform(min_x, max_x)
+            random_y = random.uniform(min_y, max_y)
+        else:
+            return (random_x, random_y)
+
+
 def generate_random_obstacles(num_obstacles: int, area_size: tuple) -> list[Obstacle]:
     # Given a number of obstacles and the bounding area size,
     # generate a list of random obstacles with unique Ids
@@ -257,19 +290,61 @@ def insert_obstacles_raw(obstacles, in_path, out_path):
         f.write(new_xml)
 
 
-def randomize_environment(env_path: str, max_num_obstacles: int = 7) -> None:
+def insert_goal_raw(goal_position, in_path, out_path):
+    # 1) Read the original XML
+    with open(in_path, 'r', encoding='utf-8') as f:
+        xml = f.read()
+
+    # 2) Build the goal string
+    goal_string = GOAL_TEMPLATE.format(
+        pX=goal_position[0],
+        pY=goal_position[1]
+    )
+
+    # 3) Split on the markers
+    try:
+        before, rest = xml.split(GOAL_START_TAG, 1)
+        _, after = rest.split(GOAL_END_TAG, 1)
+    except ValueError:
+        raise ValueError(
+            "Could not find both START_GOAL and END_GOAL in the file")
+
+    # 4) Reassemble with your goal string in between
+    new_xml = (
+        before
+        + GOAL_START_TAG
+        + "\n"
+        + goal_string
+        + "\n"
+        + "\t\t" + GOAL_END_TAG
+        + after
+    )
+
+    # 5) Write it out
+    with open(out_path, 'w', encoding='utf-8') as f:
+        f.write(new_xml)
+
+
+def randomize_environment(env_path: str, min_num_obstacles: int = 3, max_num_obstacles: int = 7) -> None:
     """
     Randomizes the environment by generating a random number of obstacles
     and inserting them into the specified XML file.
 
     :param env_path: Path to the XML environment file.
+    :param min_num_obstacles: Minimum number of obstacles to generate.
     :param max_num_obstacles: Maximum number of obstacles to generate.
     """
-    num_obstacles = random.randint(1, max_num_obstacles)
+    num_obstacles = random.randint(min_num_obstacles, max_num_obstacles)
     area_size = (-5, -5, 5, 5)  # (minX, minY, maxX, maxY)
     random_obstacles = generate_random_obstacles(num_obstacles, area_size)
+    random_goal = generate_random_goal(area_size, random_obstacles)
     insert_obstacles_raw(
         random_obstacles,
+        in_path=env_path,
+        out_path=env_path
+    )
+    insert_goal_raw(
+        random_goal,
         in_path=env_path,
         out_path=env_path
     )
@@ -283,9 +358,15 @@ if __name__ == "__main__":
         NUM_OBSTACLES = 10
         AREA_SIZE = (-5, -5, 5, 5)  # (minX, minY, maxX, maxY)
         random_obstacles = generate_random_obstacles(NUM_OBSTACLES, AREA_SIZE)
+        random_goal = generate_random_goal(AREA_SIZE, random_obstacles)
         NEW_FILE_PATH = "jackal_obstacles_randomized.xml"
         insert_obstacles_raw(
             random_obstacles,
+            in_path=FILE_PATH,
+            out_path=NEW_FILE_PATH
+        )
+        insert_goal_raw(
+            random_goal,
             in_path=FILE_PATH,
             out_path=NEW_FILE_PATH
         )

@@ -103,21 +103,29 @@ class Jackal_Env(gym.Env):
         print(f"robot geom ids: {self.robot_geom_ids}")
         print(f"floor geom id: {self.floor_geom_id}")
 
-        self.goal_position = self.extract_goal_position()
-        print(f"Goal position: {self.goal_position}")
+        # Reset the model and data
+        mujoco.mj_resetData(self.model, self.data)
+        mujoco.mj_forward(self.model, self.data)
+
+        self.goal_pose = self.extract_goal_pose()
+        print(f"Goal pose: {self.goal_pose}")  # [x, y, yaw] [m, m, rad]
 
         self.roll_pitch_threshold = 0.6
 
         self.prev_x = 0.0
         self.prev_y = 0.0
 
-    def extract_goal_position(self):
+    def extract_goal_pose(self):
         self.goal_geom_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "goal_geom"
         )
         if self.goal_geom_id == -1:
             raise ValueError("Could not find geom named 'goal_geom'")
-        return self.data.geom_xpos[self.goal_geom_id].copy()
+        pos = self.data.geom_xpos[self.goal_geom_id].copy()
+        orientation = self.data.geom_xmat[self.goal_geom_id].copy()
+        rotation = R.from_matrix(orientation.reshape(3, 3))
+        yaw = rotation.as_euler('xyz')[2]
+        return np.array([pos[0], pos[1], yaw])  # [x, y, yaw]
 
     def _check_collision(self, group1, group2):
         for i in range(self.data.ncon):
@@ -157,7 +165,8 @@ class Jackal_Env(gym.Env):
         # Extract current state
         current_x = self.data.qpos[0]
         current_y = self.data.qpos[1]
-        current_heading = self.data.qpos[3]  # Assuming index 3 is orientation (yaw)
+        # Assuming index 3 is orientation (yaw)
+        current_heading = self.data.qpos[3]
         ang_vel = self.data.qvel[5]  # Angular velocity (rad/s)
 
         # Set actuators (left and right wheel speeds)
@@ -179,19 +188,23 @@ class Jackal_Env(gym.Env):
         else:
             observation = state_obs.astype(np.float32)
 
-        goal_x, goal_y = self.goal_position[:2]
-        distance_to_goal = np.sqrt((current_x - goal_x)**2 + (current_y - goal_y)**2)
-        angle_to_goal = np.arctan2(goal_y - current_y, goal_x - current_x) - current_heading
-        angle_to_goal = (angle_to_goal + np.pi) % (2 * np.pi) - np.pi  # Normalize 
+        goal_x, goal_y = self.goal_pose[:2]
+        distance_to_goal = np.sqrt(
+            (current_x - goal_x)**2 + (current_y - goal_y)**2)
+        angle_to_goal = np.arctan2(
+            goal_y - current_y, goal_x - current_x) - current_heading
+        angle_to_goal = (angle_to_goal + np.pi) % (2 *
+                                                   np.pi) - np.pi  # Normalize
 
         # Goal-reaching reward
-        if distance_to_goal < 0.4:  
-            reward += self.rewards["goal_reached"]  
+        if distance_to_goal < 0.4:
+            reward += self.rewards["goal_reached"]
             terminated = True
             return observation, reward, terminated, truncated, info
 
         # Distance-based shaping
-        prev_distance = np.sqrt((self.prev_x - goal_x)**2 + (self.prev_y - goal_y)**2)
+        prev_distance = np.sqrt((self.prev_x - goal_x)
+                                ** 2 + (self.prev_y - goal_y)**2)
         distance_reduction = prev_distance - distance_to_goal
         reward += self.rewards["distance"] * distance_reduction
 
@@ -201,25 +214,25 @@ class Jackal_Env(gym.Env):
 
         # Obstacle avoidance
         if self._check_collision(self.robot_geom_ids, self.obstacle_geom_ids):
-            reward += self.rewards["collision_penalty"] 
+            reward += self.rewards["collision_penalty"]
             terminated = True
             return observation, reward, terminated, truncated, info
-        
+
         if self._check_roll_pitch():
-            reward += self.rewards["collision_penalty"] 
+            reward += self.rewards["collision_penalty"]
             terminated = True
             return observation, reward, terminated, truncated, info
 
         # min_obstacle_dist = np.min(self.lidar.update()['ranges']) if self.use_lidar else np.inf
-        # if min_obstacle_dist < 0.5: 
-        #     reward -= 0.1 / (min_obstacle_dist + 1e-5)  
+        # if min_obstacle_dist < 0.5:
+        #     reward -= 0.1 / (min_obstacle_dist + 1e-5)
 
         reward += self.rewards["spin_penalty"] * abs(ang_vel)
 
-        # Alignment bonus 
-        reward += self.rewards["alignment_reward"] * np.cos(angle_to_goal)  
+        # Alignment bonus
+        reward += self.rewards["alignment_reward"] * np.cos(angle_to_goal)
 
-        reward += self.rewards["time_step_penalty"] 
+        reward += self.rewards["time_step_penalty"]
 
         # Update previous position for distance shaping
         self.prev_x, self.prev_y = current_x, current_y
@@ -285,8 +298,8 @@ class Jackal_Env(gym.Env):
         mujoco.mj_forward(self.model, self.data)
 
         # Reassign the goal position
-        self.goal_position = self.extract_goal_position()
-        print(f"goal position: {self.goal_position}")
+        self.goal_pose = self.extract_goal_pose()
+        print(f"goal pose: {self.goal_pose}")
 
         # Get the basic observation
         state_obs = np.concatenate([self.data.qpos.flat, self.data.qvel.flat])
@@ -331,4 +344,3 @@ class Jackal_Env(gym.Env):
         if self.viewer:
             self.viewer.close()
         self.viewer = None
-

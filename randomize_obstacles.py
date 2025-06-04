@@ -219,13 +219,13 @@ def generate_random_goal(area_size, obstacles: list):
 
     random_x = random.uniform(min_x, max_x)
     random_y = random.uniform(min_y, max_y)
-    random_yaw = random.uniform(0, 2 * np.pi)  # Random yaw angle [radians]
+    random_yaw = random.uniform(-np.pi, np.pi)  # Random yaw in radians
     while True:
         if in_robot_area(random_x, random_y) or intersects_with_obstacles(random_x, random_y, obstacles):
             random_x = random.uniform(min_x, max_x)
             random_y = random.uniform(min_y, max_y)
         else:
-            return (random_x, random_y, yaw)
+            return (random_x, random_y, random_yaw)
 
 
 def generate_random_obstacles(num_obstacles: int, area_size: tuple) -> list[Obstacle]:

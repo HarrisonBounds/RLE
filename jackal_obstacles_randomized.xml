@@ -156,31 +156,22 @@
         </body>
     
         <!--START_OBSTACLES-->
-		<body name="obstacle1" pos="-2.271 -2.028 0.075">
-			<geom type="cylinder" size="0.90 0.15" material="obstacleColor" group="1"/>
+		<body name="obstacle1" pos="1.892 -2.346 0.270">
+			<geom type="box" size="1.09 0.76 0.54" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle2" pos="-4.200 4.342 0.310">
-			<geom type="sphere" size="0.31" material="obstacleColor" group="1"/>
+		<body name="obstacle2" pos="-2.865 -3.847 0.440">
+			<geom type="sphere" size="0.44" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle3" pos="1.872 1.916 0.655">
-			<geom type="box" size="1.45 1.42 1.31" material="obstacleColor" group="1"/>
+		<body name="obstacle3" pos="-1.387 -2.247 0.650">
+			<geom type="sphere" size="0.65" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle4" pos="1.594 2.752 0.415">
-			<geom type="cylinder" size="0.23 0.83" material="obstacleColor" group="1"/>
-		</body>
-		<body name="obstacle5" pos="0.851 -2.624 0.445">
-			<geom type="box" size="1.28 1.02 0.89" material="obstacleColor" group="1"/>
-		</body>
-		<body name="obstacle6" pos="-1.944 -3.840 0.510">
-			<geom type="sphere" size="0.51" material="obstacleColor" group="1"/>
-		</body>
-		<body name="obstacle7" pos="-2.889 3.053 0.465">
-			<geom type="cylinder" size="0.80 0.93" material="obstacleColor" group="1"/>
+		<body name="obstacle4" pos="3.326 4.093 0.990">
+			<geom type="sphere" size="0.99" material="obstacleColor" group="1"/>
 		</body>
 		<!--END_OBSTACLES-->
 
         <!--START_GOAL-->
-		<body name="goal" pos="3.189 -3.246 0.125" euler="0 0 1.457">
+		<body name="goal" pos="3.999 -0.579 0.125" euler="0 0 -1.091">
 			<geom name="goal_geom" type="box" size="0.25 0.25 0.25" material="green" group="2"/>
 		</body>
 		<!--END_GOAL-->

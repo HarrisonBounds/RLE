@@ -141,6 +141,57 @@ class Jackal_Env(gym.Env):
 
         return False
 
+    def _preprocess_lidar(self, lidar_ranges):
+        """Preprocess LiDAR data for better neural network training"""
+
+        # 1. Normalize to [0, 1] range
+        normalized_ranges = lidar_ranges / self.lidar_max_range
+
+        # 2. Apply inverse distance weighting for better obstacle representation
+        # Objects closer than 1m get exponentially higher values
+        inverse_ranges = 1.0 - normalized_ranges
+        weighted_ranges = np.where(normalized_ranges < 0.1,
+                                   inverse_ranges ** 2,
+                                   inverse_ranges)
+
+        # 3. Optional: Apply Gaussian smoothing to reduce noise
+        from scipy import ndimage
+        smoothed_ranges = ndimage.gaussian_filter(weighted_ranges, sigma=0.5)
+
+        return smoothed_ranges
+
+    def _extract_lidar_features(self, lidar_ranges):
+        """Extract meaningful features from LiDAR data"""
+
+        # Flatten the 2D LiDAR data
+        flat_ranges = lidar_ranges.flatten()
+
+        # Basic features
+        min_distance = np.min(flat_ranges)
+        mean_distance = np.mean(flat_ranges)
+
+        # Directional features (divide into sectors)
+        num_sectors = 8
+        sector_size = len(flat_ranges) // num_sectors
+        sector_mins = []
+
+        for i in range(num_sectors):
+            start_idx = i * sector_size
+            end_idx = start_idx + sector_size
+            sector_min = np.min(flat_ranges[start_idx:end_idx])
+            sector_mins.append(sector_min)
+
+        # Obstacle density (percentage of close readings)
+        close_threshold = 2.0  # meters
+        obstacle_density = np.sum(
+            flat_ranges < close_threshold) / len(flat_ranges)
+
+        # Combine features
+        features = np.array([min_distance, mean_distance,
+                            obstacle_density] + sector_mins)
+
+        return features
+
     def _check_roll_pitch(self):
         quaternion = self.data.qpos[3:7]  # Get the quaternion (qw, qx, qy, qz)
 

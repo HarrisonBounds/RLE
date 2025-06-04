@@ -6,5 +6,6 @@
     "displacement_penalty": -0.1,
     "spin_penalty": -1.0,
     "alignment_reward": 0.2,
-    "still_penalty": -0.2
+    "still_penalty": -0.2,
+    "goal_heading_reward": 0.5
 }

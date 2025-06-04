@@ -188,13 +188,19 @@ class Jackal_Env(gym.Env):
         else:
             observation = state_obs.astype(np.float32)
 
-        goal_x, goal_y = self.goal_pose[:2]
+        goal_x, goal_y, goal_yaw = self.goal_pose
         distance_to_goal = np.sqrt(
             (current_x - goal_x)**2 + (current_y - goal_y)**2)
         angle_to_goal = np.arctan2(
             goal_y - current_y, goal_x - current_x) - current_heading
         angle_to_goal = (angle_to_goal + np.pi) % (2 *
                                                    np.pi) - np.pi  # Normalize
+
+        # Calculate how close the goal_pose and the current heading match
+        goal_heading_diff = abs(
+            (goal_yaw - current_heading + np.pi))
+        # Normalize to [0, 2pi]
+        goal_heading_diff = (goal_heading_diff + np.pi) % (2 * np.pi) - np.pi
 
         # Goal-reaching reward
         if distance_to_goal < 0.4:
@@ -231,6 +237,10 @@ class Jackal_Env(gym.Env):
 
         # Alignment bonus
         reward += self.rewards["alignment_reward"] * np.cos(angle_to_goal)
+
+        # Reward matching the goal heading
+        reward += self.rewards["goal_heading_reward"] * \
+            np.exp(-goal_heading_diff**2)
 
         reward += self.rewards["time_step_penalty"]
 

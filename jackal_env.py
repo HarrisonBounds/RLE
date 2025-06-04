@@ -1,4 +1,3 @@
-
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -114,6 +113,7 @@ class Jackal_Env(gym.Env):
 
         self.prev_x = 0.0
         self.prev_y = 0.0
+        self.prev_yaw = 0.0  # Track previous orientation for progress calculation
 
     def extract_goal_pose(self):
         self.goal_geom_id = mujoco.mj_name2id(
@@ -206,6 +206,15 @@ class Jackal_Env(gym.Env):
             return True
         return False
 
+    def _normalize_angle(self, angle):
+        """Normalize angle to [-pi, pi] range"""
+        return (angle + np.pi) % (2 * np.pi) - np.pi
+
+    def _angle_difference(self, angle1, angle2):
+        """Calculate the shortest angular difference between two angles"""
+        diff = angle1 - angle2
+        return self._normalize_angle(diff)
+
     def step(self, action):
         # Initialize reward and flags
         reward = 0.0
@@ -220,7 +229,13 @@ class Jackal_Env(gym.Env):
         # Extract current state
         current_x = self.data.qpos[0]
         current_y = self.data.qpos[1]
-        current_heading = self.data.qpos[3]
+
+        # Extract current orientation (yaw from quaternion)
+        quaternion = self.data.qpos[3:7]  # Get the quaternion (qw, qx, qy, qz)
+        # Convert to scipy format
+        rotation = R.from_quat(quaternion[[1, 2, 3, 0]])
+        roll, pitch, current_yaw = rotation.as_euler('xyz')
+
         ang_vel = self.data.qvel[5]  # Angular velocity (rad/s)
 
         # Set actuators (left and right wheel speeds)
@@ -248,29 +263,58 @@ class Jackal_Env(gym.Env):
         distance_to_goal = np.sqrt(
             (current_x - goal_x)**2 + (current_y - goal_y)**2)
         angle_to_goal = np.arctan2(
-            goal_y - current_y, goal_x - current_x) - current_heading
-        angle_to_goal = (angle_to_goal + np.pi) % (2 *
-                                                   np.pi) - np.pi  # Normalize
+            goal_y - current_y, goal_x - current_x) - current_yaw
+        angle_to_goal = self._normalize_angle(angle_to_goal)
 
         # Calculate goal heading difference
-        goal_heading_diff = abs((goal_yaw - current_heading + np.pi))
-        goal_heading_diff = (goal_heading_diff + np.pi) % (2 * np.pi) - np.pi
+        goal_heading_diff = self._angle_difference(goal_yaw, current_yaw)
+        abs_heading_diff = abs(goal_heading_diff)
 
         # ========== 1. GOAL SUCCESS (Terminal) ==========
-        if distance_to_goal < 0.4:
+        # Goal is reached when both position AND orientation are close enough
+        position_close = distance_to_goal < 0.4
+        orientation_close = abs_heading_diff < np.radians(
+            15)  # 15 degrees tolerance
+
+        if position_close and orientation_close:
             reward += self.rewards["goal_reached"]
             terminated = True
+            print(
+                f"GOAL REACHED! Distance: {distance_to_goal:.3f}m, Heading diff: {np.degrees(abs_heading_diff):.1f}°")
             return observation, reward, terminated, truncated, info
 
+        # Partial goal reward if only position is achieved (encourage getting close first)
+        elif position_close:
+            reward += self.rewards["goal_reached"] * 0.3
+            print(
+                f"Position reached, working on orientation. Heading diff: {np.degrees(abs_heading_diff):.1f}°")
+
         # ========== 2. PROGRESS TOWARD GOAL (Core Learning Signal) ==========
+        # Position progress
         prev_distance = np.sqrt((self.prev_x - goal_x)
                                 ** 2 + (self.prev_y - goal_y)**2)
         distance_reduction = prev_distance - distance_to_goal
         reward += self.rewards["distance_progress"] * distance_reduction
 
+        # Orientation progress (only when close to goal position)
+        if distance_to_goal < 1.0:  # Only care about orientation when close
+            prev_heading_diff = abs(
+                self._angle_difference(goal_yaw, self.prev_yaw))
+            heading_improvement = prev_heading_diff - abs_heading_diff
+            orientation_progress_reward = self.rewards.get(
+                "orientation_progress", 50.0)
+            reward += orientation_progress_reward * heading_improvement
+
         # ========== 3. DIRECTIONAL ALIGNMENT (Navigation Guidance) ==========
         # Reward pointing toward goal (works regardless of motion)
         reward += self.rewards["alignment"] * np.cos(angle_to_goal)
+
+        # Additional orientation alignment reward when close to goal
+        if distance_to_goal < 1.0:
+            orientation_alignment = np.cos(goal_heading_diff)
+            orientation_alignment_reward = self.rewards.get(
+                "orientation_alignment", 0.5)
+            reward += orientation_alignment_reward * orientation_alignment
 
         # ========== 4. SAFETY (Collision Avoidance) ==========
         if self._check_collision(self.robot_geom_ids, self.obstacle_geom_ids):
@@ -289,20 +333,41 @@ class Jackal_Env(gym.Env):
             if min_distance_all < 0.3:  # Very close to obstacle
                 reward += -10.0
 
-        # ========== 5. PREVENT EXCESSIVE SPINNING ==========
-        # Only penalize when spinning without purpose (not aligned AND spinning fast)
-        if abs(angle_to_goal) < 0.2 and abs(ang_vel) > 1.0:  # Well aligned but still spinning
-            reward += self.rewards["excessive_spin_penalty"] * abs(ang_vel)
+        # ========== 5. SPIN PENALTY (Enhanced) ==========
+        # General spin penalty - penalize excessive angular velocity
+        spin_penalty_base = self.rewards["excessive_spin_penalty"] * \
+            (abs(ang_vel) ** 2)
+
+        # Extra penalty for spinning when well-aligned to goal direction
+        if abs(angle_to_goal) < 0.2 and abs(ang_vel) > 1.0:
+            spin_penalty_base *= 2.0  # Double penalty for purposeless spinning
+
+        # Extra penalty for spinning when close to goal and orientation is important
+        if distance_to_goal < 1.0 and abs_heading_diff < np.radians(30) and abs(ang_vel) > 0.5:
+            spin_penalty_base *= 1.5  # Penalize spinning when fine-tuning orientation
+
+        reward += spin_penalty_base
 
         # ========== 6. TIME EFFICIENCY ==========
         reward += self.rewards["time_penalty"]
 
         # Update tracking variables
         self.prev_x, self.prev_y = current_x, current_y
+        self.prev_yaw = current_yaw
         if not hasattr(self, 'prev_action'):
             self.prev_action = np.zeros_like(action)
         self.prev_action = action.copy()
 
+        # Add debug info
+        info.update({
+            'distance_to_goal': distance_to_goal,
+            'heading_diff_deg': np.degrees(abs_heading_diff),
+            'angular_velocity': ang_vel,
+            'position_close': position_close,
+            'orientation_close': orientation_close
+        })
+
+        print(f"Current Reward: {reward}")
         return observation, reward, terminated, truncated, info
 
     def reset(self, seed=None, options=None):
@@ -321,6 +386,7 @@ class Jackal_Env(gym.Env):
 
         self.prev_x = 0.0
         self.prev_y = 0.0
+        self.prev_yaw = 0.0  # Reset previous orientation tracking
 
         # Load the new model
         self.model = mujoco.MjModel.from_xml_path(self.xml_file)

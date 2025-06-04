@@ -162,10 +162,13 @@ class Jackal_Env(gym.Env):
         truncated = False
         info = {}
 
+        # Store previous action for smooth motion rewards
+        if not hasattr(self, 'prev_action'):
+            self.prev_action = np.zeros_like(action)
+
         # Extract current state
         current_x = self.data.qpos[0]
         current_y = self.data.qpos[1]
-        # Assuming index 3 is orientation (yaw)
         current_heading = self.data.qpos[3]
         ang_vel = self.data.qvel[5]  # Angular velocity (rad/s)
 
@@ -177,16 +180,18 @@ class Jackal_Env(gym.Env):
 
         mujoco.mj_step(self.model, self.data)
 
-        # Compute observations (unchanged)
+        # Compute observations
         state_obs = np.concatenate([self.data.qpos.flat, self.data.qvel.flat])
         if self.use_lidar:
-            lidar_obs = self.lidar.update()['ranges']
+            lidar_data = self.lidar.update()
+            lidar_obs = lidar_data['ranges']
             observation = {
                 'state': state_obs.astype(np.float32),
                 'lidar': lidar_obs.astype(np.float32)
             }
         else:
             observation = state_obs.astype(np.float32)
+            lidar_obs = None
 
         goal_x, goal_y, goal_yaw = self.goal_pose
         distance_to_goal = np.sqrt(
@@ -196,11 +201,11 @@ class Jackal_Env(gym.Env):
         angle_to_goal = (angle_to_goal + np.pi) % (2 *
                                                    np.pi) - np.pi  # Normalize
 
-        # Calculate how close the goal_pose and the current heading match
-        goal_heading_diff = abs(
-            (goal_yaw - current_heading + np.pi))
-        # Normalize to [0, 2pi]
+        # Calculate goal heading difference
+        goal_heading_diff = abs((goal_yaw - current_heading + np.pi))
         goal_heading_diff = (goal_heading_diff + np.pi) % (2 * np.pi) - np.pi
+
+        # ========== CORE REWARDS ==========
 
         # Goal-reaching reward
         if distance_to_goal < 0.4:
@@ -208,17 +213,15 @@ class Jackal_Env(gym.Env):
             terminated = True
             return observation, reward, terminated, truncated, info
 
-        # Distance-based shaping
+        # Distance-based progress shaping
         prev_distance = np.sqrt((self.prev_x - goal_x)
                                 ** 2 + (self.prev_y - goal_y)**2)
         distance_reduction = prev_distance - distance_to_goal
         reward += self.rewards["distance"] * distance_reduction
 
-        # Penalty for no movement
-        if abs(distance_reduction) < 0.1:
-            reward += self.rewards["still_penalty"]
+        # ========== COLLISION AND SAFETY ==========
 
-        # Obstacle avoidance
+        # Collision penalties
         if self._check_collision(self.robot_geom_ids, self.obstacle_geom_ids):
             reward += self.rewards["collision_penalty"]
             terminated = True
@@ -229,23 +232,137 @@ class Jackal_Env(gym.Env):
             terminated = True
             return observation, reward, terminated, truncated, info
 
-        # min_obstacle_dist = np.min(self.lidar.update()['ranges']) if self.use_lidar else np.inf
-        # if min_obstacle_dist < 0.5:
-        #     reward -= 0.1 / (min_obstacle_dist + 1e-5)
+        # ========== SPINNING PREVENTION ==========
 
-        reward += self.rewards["spin_penalty"] * abs(ang_vel)
+        # Strong angular velocity penalty
+        reward += self.rewards["spin_penalty"] * (abs(ang_vel) ** 1.5)
 
-        # Alignment bonus
-        reward += self.rewards["alignment_reward"] * np.cos(angle_to_goal)
+        # Direct action-based spinning detection and penalty
+        wheel_diff = abs(action[0] - action[1])
+        wheel_avg = abs(action[0] + action[1]) / 2.0
+        forward_motion = (action[0] + action[1]) / 2.0
 
-        # Reward matching the goal heading
-        reward += self.rewards["goal_heading_reward"] * \
-            np.exp(-goal_heading_diff**2)
+        # Penalize pure spinning actions
+        if wheel_diff > 0.4 and wheel_avg < 0.2:
+            reward += -10.0 * wheel_diff
 
+        # Reward forward motion
+        if forward_motion > 0.1:
+            reward += 0.3
+
+        # ========== LIDAR-BASED NAVIGATION (DIRECTIONAL) ==========
+
+        if self.use_lidar and lidar_obs is not None:
+            # Since LiDAR already provides 360° view, use it for intelligent navigation
+
+            # 1. Obstacle avoidance in movement direction
+            # Get forward-facing LiDAR readings (±45° from robot's heading)
+            num_rays_h = lidar_obs.shape[1]
+            forward_start = int(num_rays_h * 7/8)  # -45°
+            forward_end = int(num_rays_h * 1/8)    # +45°
+
+            # Handle wrap-around for forward-facing rays
+            if forward_start < forward_end:
+                forward_ranges = lidar_obs[:, forward_start:forward_end]
+            else:
+                forward_ranges = np.concatenate([
+                    lidar_obs[:, forward_start:],
+                    lidar_obs[:, :forward_end]
+                ], axis=1)
+
+            min_forward_distance = np.min(forward_ranges)
+
+            # Penalty for obstacles in forward direction (only when moving forward)
+            if forward_motion > 0.1 and min_forward_distance < 1.5:
+                obstacle_penalty = (1.5 - min_forward_distance) / 1.5
+                reward += self.rewards["obstacle_avoidance_reward"] * \
+                    (-obstacle_penalty)
+
+            # 2. Path clearance assessment for goal direction
+            # Calculate which LiDAR rays are pointing towards the goal
+            goal_angle_global = np.arctan2(
+                goal_y - current_y, goal_x - current_x)
+            goal_angle_relative = goal_angle_global - current_heading
+            goal_angle_relative = (
+                goal_angle_relative + np.pi) % (2 * np.pi) - np.pi
+
+            # Convert to LiDAR ray index
+            goal_ray_index = int(
+                (goal_angle_relative + np.pi) / (2 * np.pi) * num_rays_h) % num_rays_h
+
+            # Check clearance in goal direction (±15°)
+            goal_ray_spread = int(num_rays_h * 15 / 360)  # ±15° in ray indices
+            goal_start = (goal_ray_index - goal_ray_spread) % num_rays_h
+            goal_end = (goal_ray_index + goal_ray_spread) % num_rays_h
+
+            if goal_start < goal_end:
+                goal_ranges = lidar_obs[:, goal_start:goal_end]
+            else:
+                goal_ranges = np.concatenate([
+                    lidar_obs[:, goal_start:],
+                    lidar_obs[:, :goal_end]
+                ], axis=1)
+
+            min_goal_clearance = np.min(goal_ranges)
+
+            # Reward for clear path to goal (only when moving toward goal)
+            # Moving toward goal
+            if forward_motion > 0.1 and np.cos(angle_to_goal) > 0.5:
+                if min_goal_clearance > 2.0:  # Clear path
+                    reward += 0.5
+                elif min_goal_clearance < 1.0:  # Blocked path
+                    reward += -0.5
+
+            # 3. Emergency safety (always applied)
+            min_distance_all = np.min(lidar_obs)
+            if min_distance_all < 0.4:  # Very close to any obstacle
+                reward += -5.0
+
+        # ========== NAVIGATION REWARDS (FORWARD-MOTION CONDITIONED) ==========
+
+        # Only reward alignment and heading when robot is moving forward
+        if forward_motion > 0.15:
+            reward += self.rewards["alignment_reward"] * np.cos(angle_to_goal)
+            reward += self.rewards["goal_heading_reward"] * \
+                np.exp(-goal_heading_diff**2)
+
+        # ========== MOTION QUALITY ==========
+
+        # Smooth motion reward
+        action_change = np.linalg.norm(action - self.prev_action)
+        reward += self.rewards["smooth_motion_reward"] * np.exp(-action_change)
+
+        # Jerk penalty
+        if action_change > 0.8:
+            reward += self.rewards["jerk_penalty"] * action_change
+
+        # ========== PROGRESS REWARDS ==========
+
+        # Path efficiency (only when making progress)
+        if distance_reduction > 0 and forward_motion > 0.1:
+            efficiency = distance_reduction / (np.linalg.norm(action) + 1e-6)
+            reward += self.rewards["path_efficiency_reward"] * efficiency
+
+        # Progress milestones
+        if not hasattr(self, 'closest_distance'):
+            self.closest_distance = distance_to_goal
+
+        if distance_to_goal < self.closest_distance - 0.5:
+            reward += self.rewards["progress_milestone_reward"]
+            self.closest_distance = distance_to_goal
+
+        # ========== PENALTIES ==========
+
+        # Still penalty
+        if abs(distance_reduction) < 0.05:
+            reward += self.rewards["still_penalty"]
+
+        # Time step penalty
         reward += self.rewards["time_step_penalty"]
 
-        # Update previous position for distance shaping
+        # Update previous values
         self.prev_x, self.prev_y = current_x, current_y
+        self.prev_action = action.copy()
 
         return observation, reward, terminated, truncated, info
 

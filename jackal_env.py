@@ -220,7 +220,10 @@ class Jackal_Env(gym.Env):
         # Extract current state
         current_x = self.data.qpos[0]
         current_y = self.data.qpos[1]
-        current_heading = self.data.qpos[3]
+        # Quaternion (qw, qx, qy, qz)
+        current_orientation = self.data.qpos[3:7]
+        rotation = R.from_quat(current_orientation[[1, 2, 3, 0]])
+        current_heading = rotation.as_euler('xyz')[2]  # Yaw (rad)
         ang_vel = self.data.qvel[5]  # Angular velocity (rad/s)
 
         # Set actuators (left and right wheel speeds)

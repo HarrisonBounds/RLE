@@ -166,7 +166,10 @@ class Jackal_Env(gym.Env):
         current_x = self.data.qpos[0]
         current_y = self.data.qpos[1]
         # Assuming index 3 is orientation (yaw)
-        current_heading = self.data.qpos[3]
+        # current_heading = self.data.qpos[3]
+        current_orientation = self.data.qpos[3:7]  # Quaternion
+        current_rotation = R.from_quat(current_orientation)
+        current_heading = current_rotation.as_euler('xyz')[2]  # Yaw in radians
         ang_vel = self.data.qvel[5]  # Angular velocity (rad/s)
 
         # Set actuators (left and right wheel speeds)

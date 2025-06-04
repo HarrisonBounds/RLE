@@ -17,8 +17,8 @@ OBSTACLE_TEMPLATE = (
 )
 
 GOAL_TEMPLATE = (
-    "\t\t<body name=\"goal\" pos=\"{pX:.3f} {pY:.3f} 0.125\" euler=\"0 0 {yaw:.3f}\">\n"
-    "\t\t\t<geom name=\"goal_geom\" type=\"box\" size=\"0.25 0.25 0.25\" material=\"green\" group=\"2\"/>\n"
+    "\t\t<body name=\"goal\" pos=\"{pX:.3f} {pY:.3f} 0.15\" euler=\"0 0 {yaw:.3f}\">\n"
+    "\t\t\t<geom name=\"goal_geom\" type=\"box\" size=\"0.1 0.1 0.1\" material=\"green\" group=\"2\"/>\n"
     "\t\t</body>"
 )
 
@@ -213,7 +213,7 @@ def generate_random_goal(area_size, obstacles: list):
     def intersects_with_obstacles(x, y, obstacles):
         # Check if the goal position intersects with any existing obstacles
         for obst in obstacles:
-            if obst.intersects(Obstacle(-1, "box", "0.25 0.25 0.25", (x, y, 0.125))):
+            if obst.intersects(Obstacle(-1, "box", "0.1 0.1 0.1", (x, y, (0.1 / 2) + 0.1))):
                 return True
         return False
 

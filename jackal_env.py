@@ -111,6 +111,18 @@ class Jackal_Env(gym.Env):
         self.prev_x = 0.0
         self.prev_y = 0.0
 
+        self.episode_rewards = []  # Stores complete episode rewards
+        self.current_episode_rewards = {
+            'alignment': 0.0,
+            'forward': 0.0,
+            'angular_penalty': 0.0,
+            'distance': 0.0,
+            'goal': 0.0,
+            'collision': 0.0,
+            'time_penalty': 0.0,
+            'total': 0.0
+        }
+
     def extract_goal_position(self):
         self.goal_geom_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "goal_geom"
@@ -179,62 +191,115 @@ class Jackal_Env(gym.Env):
         else:
             observation = state_obs.astype(np.float32)
 
-        goal_x, goal_y = self.goal_position[:2]
-        distance_to_goal = np.sqrt((current_x - goal_x)**2 + (current_y - goal_y)**2)
-        angle_to_goal = np.arctan2(goal_y - current_y, goal_x - current_x) - current_heading
-        angle_to_goal = (angle_to_goal + np.pi) % (2 * np.pi) - np.pi  # Normalize 
+        quaternion = self.data.qpos[3:7]
+        rotation = R.from_quat(quaternion[[1, 2, 3, 0]]) # Convert to (x, y, z, w) for scipy
+        roll, pitch, current_yaw = rotation.as_euler('xyz')
 
-        # Goal-reaching reward
-        if distance_to_goal < 0.4:  
-            reward += self.rewards["goal_reached"]  
-            terminated = True
-            return observation, reward, terminated, truncated, info
+        goal_x, goal_y = self.goal_position[:2]
+        dx = goal_x - current_x
+        dy = goal_y - current_y
+        desired_yaw = np.arctan2(dy, dx)
+        distance_to_goal = np.sqrt((current_x - goal_x)**2 + (current_y - goal_y)**2)
+
+        angle_diff = np.arctan2(np.sin(desired_yaw - current_yaw), np.cos(desired_yaw - current_yaw))
 
         # Distance-based shaping
         prev_distance = np.sqrt((self.prev_x - goal_x)**2 + (self.prev_y - goal_y)**2)
         distance_reduction = prev_distance - distance_to_goal
-        reward += self.rewards["distance"] * distance_reduction
 
-        # Penalty for no movement
-        if abs(distance_reduction) < 0.1:
-            reward += self.rewards["still_penalty"]
+        linear_velocity = np.sqrt(self.data.qvel[0]**2 + self.data.qvel[1]**2)
 
-        # Obstacle avoidance
-        if self._check_collision(self.robot_geom_ids, self.obstacle_geom_ids):
-            reward += self.rewards["collision_penalty"] 
+        reward_components = {
+            'alignment': 0.0,
+            'forward': 0.0,
+            'angular_penalty': 0.0,
+            'distance': 0.0,
+            'goal': 0.0,
+            'collision': 0.0,
+            'time_penalty': 0.0
+        }
+
+        # Calculate base rewards
+        reward_components['alignment'] = self.rewards["alignment_reward"] * np.cos(angle_diff)
+        reward_components['forward'] = self.rewards["forward_motion"] * linear_velocity * np.cos(angle_diff)
+        reward_components['angular_penalty'] = self.rewards["angular_penalty"] * abs(ang_vel)
+        reward_components['distance'] = self.rewards["distance"] * distance_reduction
+        reward_components['time_penalty'] = self.rewards.get("time_penalty", 0.01)
+
+        # Goal-reaching reward
+        if distance_to_goal < 1.0:
+            reward_components['goal'] = self.rewards["goal_reached"]
             terminated = True
-            return observation, reward, terminated, truncated, info
+
+        # Collision penalties
+        if self._check_collision(self.robot_geom_ids, self.obstacle_geom_ids):
+            reward_components['collision'] = self.rewards["collision_penalty"]
+            terminated = True
         
         if self._check_roll_pitch():
-            reward += self.rewards["collision_penalty"] 
+            reward_components['collision'] = self.rewards["collision_penalty"]
             terminated = True
-            return observation, reward, terminated, truncated, info
 
-        # min_obstacle_dist = np.min(self.lidar.update()['ranges']) if self.use_lidar else np.inf
-        # if min_obstacle_dist < 0.5: 
-        #     reward -= 0.1 / (min_obstacle_dist + 1e-5)  
+        # Calculate total reward
+        total_reward = sum(reward_components.values())
+        reward_components['total'] = total_reward
 
-        reward += self.rewards["spin_penalty"] * abs(ang_vel)
+        # Update current episode tracking
+        for key in self.current_episode_rewards:
+            self.current_episode_rewards[key] += reward_components[key]
 
-        # Alignment bonus 
-        reward += self.rewards["alignment_reward"] * np.cos(angle_to_goal)  
+        self.prev_x = current_x
+        self.prev_y = current_y
 
-        reward += self.rewards["time_step_penalty"] 
-
-        # Update previous position for distance shaping
-        self.prev_x, self.prev_y = current_x, current_y
+        info['reward_components'] = reward_components.copy()
 
         return observation, reward, terminated, truncated, info
+    
+    def get_reward_statistics(self):
+        """Returns statistics about rewards across all episodes"""
+        if not self.episode_rewards:
+            # Return empty statistics if no episodes completed
+            return {
+                component: {
+                    'mean': 0.0,
+                    'std': 0.0,
+                    'min': 0.0,
+                    'max': 0.0,
+                    'total': 0.0
+                }
+                for component in self.current_episode_rewards.keys()
+            }
+        
+        stats = {}
+        for component in self.episode_rewards[0].keys():
+            values = [ep[component] for ep in self.episode_rewards]
+            stats[component] = {
+                'mean': np.mean(values),
+                'std': np.std(values),
+                'min': np.min(values),
+                'max': np.max(values),
+                'total': np.sum(values)
+            }
+        return stats
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
 
+        if self.current_episode_rewards['total'] != 0:
+            print("\n--- Episode Reward Summary ---")
+            for component, value in self.current_episode_rewards.items():
+                print(f"{component:>15}: {value:10.2f}")
+            self.episode_rewards.append(self.current_episode_rewards.copy())
+        
+        # Reset tracking
+        self.current_episode_rewards = {k: 0.0 for k in self.current_episode_rewards}
+
         # Generate a new XML file with randomized obstacles and goal position
-        randomize_environment(
-            env_path=self.xml_file,
-            min_num_obstacles=3,  # Adjust as needed or parameterize
-            max_num_obstacles=8  # Adjust as needed or parameterize
-        )
+        # randomize_environment(
+        #     env_path=self.xml_file,
+        #     min_num_obstacles=3,  # Adjust as needed or parameterize
+        #     max_num_obstacles=8  # Adjust as needed or parameterize
+        # )
 
         # Get initial positions for displacement
         self.initial_x = self.data.qpos[0]
@@ -243,11 +308,11 @@ class Jackal_Env(gym.Env):
         self.prev_x = 0.0
         self.prev_y = 0.0
 
-        # Load the new model
-        self.model = mujoco.MjModel.from_xml_path(self.xml_file)
-        self.data = mujoco.MjData(self.model)
-        self.metadata = {"render_modes": ["human", "rgb_array"],
-                         "render_fps": int(1.0 / (self.model.opt.timestep))}
+        # # Load the new model
+        # self.model = mujoco.MjModel.from_xml_path(self.xml_file)
+        # self.data = mujoco.MjData(self.model)
+        # self.metadata = {"render_modes": ["human", "rgb_array"],
+        #                  "render_fps": int(1.0 / (self.model.opt.timestep))}
 
         # Reinitialize LiDAR if enabled since the model has changed
         if self.use_lidar:

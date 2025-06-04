@@ -8,39 +8,31 @@ import numpy as np
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Actor, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 2048)
-        self.fc2 = nn.Linear(2048, 1024)
-        self.fc3 = nn.Linear(1024, 512)
-        self.fc4 = nn.Linear(512, 256)
-        self.fc5 = nn.Linear(256, 64)
-        self.fc6 = nn.Linear(64, action_dim) 
+        self.fc1 = nn.Linear(state_dim, 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc3 = nn.Linear(256, 256)
+        self.fc4 = nn.Linear(256, action_dim) 
         self.log_std = nn.Parameter(torch.zeros(1, action_dim)) 
     def forward(self, state):
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
-        x = F.relu(self.fc4(x))
-        x = F.relu(self.fc5(x))
-        action_mean = torch.tanh(self.fc6(x)) 
+        action_mean = torch.tanh(self.fc4(x)) 
         action_std = torch.exp(self.log_std)
         return action_mean, action_std 
 
 class Critic(nn.Module):
     def __init__(self, state_dim):
         super(Critic, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 2048)
-        self.fc2 = nn.Linear(2048, 1024)
-        self.fc3 = nn.Linear(1024, 512)
-        self.fc4 = nn.Linear(512, 256)
-        self.fc5 = nn.Linear(256, 64)
-        self.fc6 = nn.Linear(64, 1) 
+        self.fc1 = nn.Linear(state_dim, 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc3 = nn.Linear(256, 256)
+        self.fc4 = nn.Linear(256, 1) 
     def forward(self, state):
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
-        x = F.relu(self.fc4(x))
-        x = F.relu(self.fc5(x))
-        value = self.fc6(x)
+        value = self.fc4(x)
         return value
 
 #Store data to update policy   
@@ -48,27 +40,37 @@ class ReplayBuffer:
     def __init__(self):
         self.states = []
         self.actions = []
-        self.rewards = []
+        self.rewards_components = []
         self.next_states = []
         self.dones = []
         self.log_probs = [] #store log probs of actions
 
-    def store(self, state, action, reward, next_state, done, log_prob):
+    def store(self, state, action, reward_components, next_state, done, log_prob):
         self.states.append(state)
         self.actions.append(action)
-        self.rewards.append(reward)
+        self.rewards_components.append(reward_components)
         self.next_states.append(next_state)
         self.dones.append(done)
         self.log_probs.append(log_prob)
 
     def get_batch(self):
+        # Extract total rewards from the components for PPO update
+        rewards_total = torch.tensor([r['total'] for r in self.rewards_components], dtype=torch.float32)
+
+        # Sum individual reward components for reporting
+        batch_reward_summary = {key: 0.0 for key in self.rewards_components[0].keys()}
+        for step_reward_components in self.rewards_components:
+            for key, value in step_reward_components.items():
+                batch_reward_summary[key] += value
+
         batch = {
             'states': torch.tensor(np.array(self.states), dtype=torch.float32),
             'actions': torch.tensor(np.array(self.actions), dtype=torch.float32),
-            'rewards': torch.tensor(np.array(self.rewards), dtype=torch.float32),
+            'rewards': rewards_total, # Use the total rewards for PPO
             'next_states': torch.tensor(np.array(self.next_states), dtype=torch.float32),
             'dones': torch.tensor(np.array(self.dones), dtype=torch.float32),
-            'log_probs': torch.tensor(np.array(self.log_probs), dtype=torch.float32), #added log probs
+            'log_probs': torch.tensor(np.array(self.log_probs), dtype=torch.float32),
+            'batch_reward_summary': batch_reward_summary # Add the component summary
         }
         self.clear()
         return batch
@@ -76,7 +78,7 @@ class ReplayBuffer:
     def clear(self):
         self.states = []
         self.actions = []
-        self.rewards = []
+        self.rewards_components = []
         self.next_states = []
         self.dones = []
         self.log_probs = []
@@ -162,13 +164,14 @@ class PPOAgent:
         return advantages.unsqueeze(1), returns.unsqueeze(1)
 
     def update(self):
-        #Get batch from replay buffer and clear buffer
+
         batch = self.buffer.get_batch()
+        batch_reward_summary = batch.pop('batch_reward_summary') # Extract and remove from batch dict
 
         #Organize data
         states = batch['states']
         actions = batch['actions']
-        rewards = batch['rewards']
+        rewards = batch['rewards'] 
         next_states = batch['next_states']
         dones = batch['dones']
         old_log_probs = batch['log_probs']
@@ -233,6 +236,8 @@ class PPOAgent:
             self.optimizer_critic.step()
 
             #print(f"Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}, Entropy: {entropy.item():.4f}")
+
+            return batch_reward_summary
 
             
 

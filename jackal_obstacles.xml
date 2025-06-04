@@ -143,33 +143,33 @@
 
         <!-- Walls Enclosing the Robot [-5, 5] 10x10 Arena -->
         <body name="wall1" pos="5 0 0.5">
-            <geom type="box" size="0.1 5 0.5" material="wallColor" />
+            <geom type="box" size="0.1 5 0.5" material="wallColor" group="1"/>
         </body>
         <body name="wall2" pos="-5 0 0.5">
-            <geom type="box" size="0.1 5 0.5" material="wallColor" />
+            <geom type="box" size="0.1 5 0.5" material="wallColor" group="1"/>
         </body>
         <body name="wall3" pos="0 5 0.5">
-            <geom type="box" size="5 0.1 0.5" material="wallColor" />
+            <geom type="box" size="5 0.1 0.5" material="wallColor" group="1"/>
         </body>
         <body name="wall4" pos="0 -5 0.5">
-            <geom type="box" size="5 0.1 0.5" material="wallColor" />
+            <geom type="box" size="5 0.1 0.5" material="wallColor" group="1"/>
         </body>
     
         <!--START_OBSTACLES-->
-        <body name="obstacle1" pos="2 0 0.5">
-            <geom type="box" size="0.5 0.5 0.5" material="obstacleColor" />
+        <!-- <body name="obstacle1" pos="2 0 0.5">
+            <geom type="box" size="0.5 0.5 0.5" material="obstacleColor" group="1"/>
         </body>
         <body name="obstacle2" pos="0 3 0.5">
-            <geom type="cylinder" size="0.5 1" material="obstacleColor" />
+            <geom type="cylinder" size="0.5 1" material="obstacleColor" group="1"/>
         </body>
         <body name="obstacle3" pos="-3 -2 0.5">
-            <geom type="sphere" size="0.7" material="obstacleColor" />
-        </body>
+            <geom type="sphere" size="0.7" material="obstacleColor" group="1"/>
+        </body> -->
         <!--END_OBSTACLES-->
 
         <!--START_GOAL-->
-        <body name="goal" pos="2 0 0.125">
-            <geom name="goal_geom" type="box" size="0.5 0.5 0.5" material="green" />
+        <body name="goal" pos="4 3 0.125">
+            <geom name="goal_geom" type="box" size="0.25 0.25 0.25" material="green" />
         </body>
         <!--END_GOAL-->
 

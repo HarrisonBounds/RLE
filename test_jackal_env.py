@@ -9,8 +9,7 @@ import os
 
 # --- Training Hyperparameters ---
 TOTAL_TIMESTEPS = 1_000_000
-STEPS_PER_BATCH = 512
-MAX_STEPS = STEPS_PER_BATCH * 8
+STEPS_PER_BATCH = 512 # Number of environment steps to collect before a PPO update
 
 # --- Logging & Saving ---
 LOG_INTERVAL_EPISODES = 10
@@ -26,21 +25,18 @@ print(f"Using device: {DEVICE}")
 
 # Set up Env
 env = Jackal_Env(
-    xml_file="jackal_obstacles_randomized.xml",
+    xml_file="jackal_obstacles.xml",
     render_mode="human",
-    use_lidar=True  # Keeping this as True, so env returns a dictionary
+    use_lidar=True
 )
 
 # Get observation and action dimensions
-print("Observation space: ", env.observation_space)
 obs_space = env.observation_space
 action_space = env.action_space
 
-# Calculate state_dim correctly for a Dict observation space
 state_dim = 0
 for key, space in obs_space.spaces.items():
     state_dim += np.prod(space.shape)
-
 action_dim = np.prod(action_space.shape)
 print(f"State dim: {state_dim}, Action Dim: {action_dim}")
 
@@ -63,15 +59,14 @@ agent.actor.to(DEVICE)
 agent.critic.to(DEVICE)
 
 # Reset env and get first observation
-raw_observation, info = env.reset()  # Renamed to raw_observation for clarity
-# Process the Dict observation for the agent input
+raw_observation, info = env.reset()
 processed_state = np.concatenate(
     [raw_observation['state'].flatten(), raw_observation['lidar'].flatten()])
 
 # --- Training Loop Variables ---
 global_step = 0
 episode_reward_sum = 0
-episode_steps = 0
+episode_steps_this_episode = 0 
 episode_count = 0
 batch_number = 0
 
@@ -80,72 +75,61 @@ batch_number = 0
 print("\n--- Starting PPO Training ---")
 try:
     while global_step < TOTAL_TIMESTEPS:
-        batch_steps = 0
-
-        while batch_steps < STEPS_PER_BATCH:
-            #print(f"Global step: {global_step}")
-
-            if global_step >= MAX_STEPS:
-                truncated = True
-
-            # Pass the ALREADY PROCESSED (flattened/concatenated) state to select_action
+        steps_collected_in_this_segment = 0 
+        
+        while steps_collected_in_this_segment < STEPS_PER_BATCH:
             action, log_prob = agent.select_action(processed_state)
 
-            # action = [0.5, 0.5]
-
-            # Take environment step
-            raw_new_observation, reward, terminated, truncated, info = env.step(
-                action)
+            raw_new_observation, reward, terminated, truncated, info = env.step(action)
             env.render()
 
-            # Process the new raw observation for the agent and buffer
             new_processed_state = np.concatenate(
                 [raw_new_observation['state'].flatten(), raw_new_observation['lidar'].flatten()])
 
             done_flag = True if terminated or truncated else False
 
-            # Store experience in the agent's replay buffer
             agent.buffer.store(
-                processed_state,  # Store the processed state
+                processed_state,
                 action,
-                reward,
-                new_processed_state,  # Store the new processed state
+                info['reward_components'], 
+                new_processed_state,
                 done_flag,
                 log_prob
             )
 
             episode_reward_sum += reward
-            episode_steps += 1
-            global_step += 1
-            batch_steps += 1
+            episode_steps_this_episode += 1
+            global_step += 1 
+            steps_collected_in_this_segment += 1
 
-            # Update current processed state for the next step
             processed_state = new_processed_state
 
             if terminated or truncated:
                 episode_count += 1
-
                 print(
-                    f"Episode {episode_count} | Total T: {global_step} | Steps: {episode_steps} | Reward: {episode_reward_sum:.2f}")
+                    f"Episode {episode_count} | Total T: {global_step} | Steps: {episode_steps_this_episode} | Reward: {episode_reward_sum:.2f}")
 
-                # Reset environment and get new raw observation
                 raw_observation, info = env.reset()
-                # Process the new initial raw observation for the next step
                 processed_state = np.concatenate(
                     [raw_observation['state'].flatten(), raw_observation['lidar'].flatten()])
 
-                # Reset episode specific counters
                 episode_reward_sum = 0
-                episode_steps = 0
-                break
+                episode_steps_this_episode = 0
+                
+               
+                break 
 
         if len(agent.buffer.states) > 0:
             batch_number += 1
-            agent.update()
-            print(f"Updated batch: {batch_number}")
-            print(f"Reward: {reward}")
+            batch_component_summary = agent.update() # agent.update() will clear the buffer
+            
+            print(f"\n--- PPO Batch Update {batch_number} Completed ({len(agent.buffer.states)} steps) ---")
+            
+            print("Reward Contributions for Current Batch:")
+            for component, total_value in batch_component_summary.items():
+                print(f"  {component:<15}: {total_value:.2f}")
 
-        if global_step % SAVE_MODEL_INTERVAL_STEPS == 0:
+        if global_step % SAVE_MODEL_INTERVAL_STEPS == 0 and global_step > 0:
             torch.save(agent.actor.state_dict(), os.path.join(
                 MODEL_DIR, f"actor_step_{global_step}.pth"))
             torch.save(agent.critic.state_dict(), os.path.join(

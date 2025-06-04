@@ -115,6 +115,32 @@ class Jackal_Env(gym.Env):
         self.prev_x = 0.0
         self.prev_y = 0.0
 
+        # Initialize reward plots
+        plt.ion()
+        self.fix, self.ax = plt.subplots(
+            nrows=2, ncols=3, figsize=(12, 8), tight_layout=True)
+        self.ax = self.ax.flatten()
+
+        self.component_names = [
+            "Distance Reward",
+            "Spin Penalty",
+            "Alignment Reward",
+            "Still Penalty",
+            "Total Reward"
+        ]
+        self.reward_history = {name: [] for name in self.component_names}
+        self.lines = {}
+        for i, comp in enumerate(self.component_names):
+            self.lines[comp], = self.ax[i].plot(
+                [], [], "-o", markersize=2, linewidth=1, label=comp)
+            self.ax[i].set_title(comp)
+            self.ax[i].set_xlabel("Time Steps")
+            self.ax[i].set_ylabel("Reward")
+            self.ax[i].legend()
+            self.ax[i].grid()
+        plt.show()
+        plt.pause(0.001)
+
     def extract_goal_pose(self):
         self.goal_geom_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "goal_geom"
@@ -241,11 +267,36 @@ class Jackal_Env(gym.Env):
         # Alignment bonus
         reward += self.rewards["alignment_reward"] * np.cos(angle_to_goal)
 
-        # Reward matching the goal heading
-        reward += self.rewards["goal_heading_reward"] * \
-            np.exp(-goal_heading_diff**2)
-
         reward += self.rewards["time_step_penalty"]
+
+        # Update reward history for plotting
+        self.reward_history["Distance Reward"].append(
+            self.rewards["distance"] * distance_reduction)
+        self.reward_history["Spin Penalty"].append(
+            self.rewards["spin_penalty"] * abs(ang_vel))
+        self.reward_history["Alignment Reward"].append(
+            self.rewards["alignment_reward"] * np.cos(angle_to_goal))
+        self.reward_history["Still Penalty"].append(
+            self.rewards["still_penalty"] if abs(distance_reduction) < 0.1 else 0.0)
+        self.reward_history["Total Reward"].append(reward)
+        # Update the plots every few timesteps
+        TIMESTEPS_BETWEEN_PLOTS = 100
+        if len(self.reward_history["Total Reward"]) % TIMESTEPS_BETWEEN_PLOTS == 0:
+            for comp in self.component_names:
+                self.lines[comp].set_xdata(
+                    np.arange(len(self.reward_history[comp])))
+                self.lines[comp].set_ydata(self.reward_history[comp])
+                self.ax[self.component_names.index(comp)].relim()
+                self.ax[self.component_names.index(comp)].autoscale_view()
+                plt.draw()
+                plt.pause(0.001)
+
+        # print(
+        #     f" distance={distance_reduction:.3f} ({self.rewards['distance']*distance_reduction:.3f}),"
+        #     f" spin={self.rewards['spin_penalty']*abs(ang_vel):.3f},"
+        #     f" align={self.rewards['alignment_reward']*np.cos(angle_to_goal):.3f},"
+        #     f" tstep_pen={self.rewards['time_step_penalty']:.3f}"
+        # )
 
         # Update previous position for distance shaping
         self.prev_x, self.prev_y = current_x, current_y

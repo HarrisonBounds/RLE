@@ -115,6 +115,32 @@ class Jackal_Env(gym.Env):
         self.prev_x = 0.0
         self.prev_y = 0.0
 
+        # Initialize reward plots
+        plt.ion()
+        self.fix, self.ax = plt.subplots(
+            nrows=2, ncols=3, figsize=(12, 8), tight_layout=True)
+        self.ax = self.ax.flatten()
+
+        self.component_names = [
+            "Distance Reward",
+            "Spin Penalty",
+            "Alignment Reward",
+            "Still Penalty",
+            "Total Reward"
+        ]
+        self.reward_history = {name: [] for name in self.component_names}
+        self.lines = {}
+        for i, comp in enumerate(self.component_names):
+            self.lines[comp], = self.ax[i].plot(
+                [], [], "-o", markersize=2, linewidth=1, label=comp)
+            self.ax[i].set_title(comp)
+            self.ax[i].set_xlabel("Time Steps")
+            self.ax[i].set_ylabel("Reward")
+            self.ax[i].legend()
+            self.ax[i].grid()
+        plt.show()
+        plt.pause(0.001)
+
     def extract_goal_pose(self):
         self.goal_geom_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "goal_geom"

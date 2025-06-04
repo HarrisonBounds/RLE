@@ -118,14 +118,13 @@ class Jackal_Env(gym.Env):
         # Initialize reward plots
         plt.ion()
         self.fix, self.ax = plt.subplots(
-            nrows=2, ncols=3, figsize=(12, 8), tight_layout=True)
+            nrows=2, ncols=2, figsize=(12, 8), tight_layout=True)
         self.ax = self.ax.flatten()
 
         self.component_names = [
             "Distance Reward",
             "Spin Penalty",
             "Alignment Reward",
-            "Still Penalty",
             "Total Reward"
         ]
         self.reward_history = {name: [] for name in self.component_names}
@@ -331,6 +330,28 @@ class Jackal_Env(gym.Env):
         if not hasattr(self, 'prev_action'):
             self.prev_action = np.zeros_like(action)
         self.prev_action = action.copy()
+
+        # Update reward history for plotting
+        self.reward_history["Distance Reward"].append(
+            self.rewards["distance_progress"] * distance_reduction)
+        self.reward_history["Spin Penalty"].append(
+            self.rewards["excessive_spin_penalty"] * abs(ang_vel))
+        self.reward_history["Alignment Reward"].append(
+            self.rewards["alignment"] * np.cos(angle_to_goal))
+        # self.reward_history["Still Penalty"].append(
+        #     self.rewards["still_penalty"] if abs(distance_reduction) < 0.1 else 0.0)
+        self.reward_history["Total Reward"].append(reward)
+        # Update the plots every few timesteps
+        TIMESTEPS_BETWEEN_PLOTS = 100
+        if len(self.reward_history["Total Reward"]) % TIMESTEPS_BETWEEN_PLOTS == 0:
+            for comp in self.component_names:
+                self.lines[comp].set_xdata(
+                    np.arange(len(self.reward_history[comp])))
+                self.lines[comp].set_ydata(self.reward_history[comp])
+                self.ax[self.component_names.index(comp)].relim()
+                self.ax[self.component_names.index(comp)].autoscale_view()
+                plt.draw()
+                plt.pause(0.001)
 
         return observation, reward, terminated, truncated, info
 

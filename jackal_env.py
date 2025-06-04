@@ -108,6 +108,9 @@ class Jackal_Env(gym.Env):
 
         self.roll_pitch_threshold = 0.6
 
+        self.prev_x = 0.0
+        self.prev_y = 0.0
+
     def extract_goal_position(self):
         self.goal_geom_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "goal_geom"
@@ -145,19 +148,19 @@ class Jackal_Env(gym.Env):
         return False
 
     def step(self, action):
-        # Initialize reward FIRST
+        # Initialize reward and flags
         reward = 0.0
         terminated = False
         truncated = False
         info = {}
 
+        # Extract current state
         current_x = self.data.qpos[0]
         current_y = self.data.qpos[1]
-        ang_vel = self.data.qvel[5]
+        current_heading = self.data.qpos[3]  # Assuming index 3 is orientation (yaw)
+        ang_vel = self.data.qvel[5]  # Angular velocity (rad/s)
 
-        assert len(action) == 2, "Action should be [left_speed, right_speed]"
-
-        # Set actuators
+        # Set actuators (left and right wheel speeds)
         self.data.ctrl[self.left_front] = action[0]
         self.data.ctrl[self.left_rear] = action[0]
         self.data.ctrl[self.right_front] = action[1]
@@ -165,52 +168,61 @@ class Jackal_Env(gym.Env):
 
         mujoco.mj_step(self.model, self.data)
 
-        # Basic observation
+        # Compute observations (unchanged)
         state_obs = np.concatenate([self.data.qpos.flat, self.data.qvel.flat])
-
-        # LiDAR observation (still collected for the agent, but not for reward)
         if self.use_lidar:
             lidar_obs = self.lidar.update()['ranges']
             observation = {
                 'state': state_obs.astype(np.float32),
                 'lidar': lidar_obs.astype(np.float32)
             }
-
         else:
             observation = state_obs.astype(np.float32)
 
-        if self._check_collision(self.robot_geom_ids, self.obstacle_geom_ids):
-            reward += self.rewards["collision_penalty"]
-            terminated = True
-
-        if self._check_roll_pitch():
-            reward += self.rewards["collision_penalty"]
-            terminated = True
-
-        # Rewards
-        # Time step penalty
-        reward += self.rewards["time_step_penalty"]
-
-        # Displacement penalty (dont take too long for a path to goal)
-        total_displacement = np.sqrt(
-            (current_x - self.initial_x)**2 + (current_y - self.initial_y)**2
-        )
-        reward += total_displacement * self.rewards["displacement_penalty"]
-
-        # Reward inverse distance to goal
         goal_x, goal_y = self.goal_position[:2]
-        distance_to_goal = np.sqrt((current_x - goal_x)**2 + (current_y - goal_y)**2) + 1e-6
+        distance_to_goal = np.sqrt((current_x - goal_x)**2 + (current_y - goal_y)**2)
+        angle_to_goal = np.arctan2(goal_y - current_y, goal_x - current_x) - current_heading
+        angle_to_goal = (angle_to_goal + np.pi) % (2 * np.pi) - np.pi  # Normalize 
 
-        reward += (1/distance_to_goal) * self.rewards["distance_reward"]
-
-        # Penalize too much angular velocity
-        if ang_vel > 3:
-            reward += self.rewards["max_ang_vel_penalty"]
-
-        # Terminate if goal is reached
-        if distance_to_goal < 0.4:
-            reward += self.rewards["goal_reached"]
+        # Goal-reaching reward
+        if distance_to_goal < 0.4:  
+            reward += self.rewards["goal_reached"]  
             terminated = True
+            return observation, reward, terminated, truncated, info
+
+        # Distance-based shaping
+        prev_distance = np.sqrt((self.prev_x - goal_x)**2 + (self.prev_y - goal_y)**2)
+        distance_reduction = prev_distance - distance_to_goal
+        reward += self.rewards["distance"] * distance_reduction
+
+        # Penalty for no movement
+        if abs(distance_reduction) < 0.1:
+            reward += self.rewards["still_penalty"]
+
+        # Obstacle avoidance
+        if self._check_collision(self.robot_geom_ids, self.obstacle_geom_ids):
+            reward += self.rewards["collision_penalty"] 
+            terminated = True
+            return observation, reward, terminated, truncated, info
+        
+        if self._check_roll_pitch():
+            reward += self.rewards["collision_penalty"] 
+            terminated = True
+            return observation, reward, terminated, truncated, info
+
+        # min_obstacle_dist = np.min(self.lidar.update()['ranges']) if self.use_lidar else np.inf
+        # if min_obstacle_dist < 0.5: 
+        #     reward -= 0.1 / (min_obstacle_dist + 1e-5)  
+
+        reward += self.rewards["spin_penalty"] * abs(ang_vel)
+
+        # Alignment bonus 
+        reward += self.rewards["alignment_reward"] * np.cos(angle_to_goal)  
+
+        reward += self.rewards["time_step_penalty"] 
+
+        # Update previous position for distance shaping
+        self.prev_x, self.prev_y = current_x, current_y
 
         return observation, reward, terminated, truncated, info
 
@@ -227,6 +239,9 @@ class Jackal_Env(gym.Env):
         # Get initial positions for displacement
         self.initial_x = self.data.qpos[0]
         self.initial_y = self.data.qpos[1]
+
+        self.prev_x = 0.0
+        self.prev_y = 0.0
 
         # Load the new model
         self.model = mujoco.MjModel.from_xml_path(self.xml_file)

@@ -143,6 +143,7 @@ try:
             batch_number += 1
             agent.update()
             print(f"Updated batch: {batch_number}")
+            print(f"Reward: {reward}")
 
         if global_step % SAVE_MODEL_INTERVAL_STEPS == 0:
             torch.save(agent.actor.state_dict(), os.path.join(

@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import random
 import time
+import numpy as np
 
 # Tags in XML to identify where to insert generated obstacles
 START_TAG = "<!--START_OBSTACLES-->"
@@ -16,7 +17,7 @@ OBSTACLE_TEMPLATE = (
 )
 
 GOAL_TEMPLATE = (
-    "\t\t<body name=\"goal\" pos=\"{pX:.3f} {pY:.3f} 0.125\">\n"
+    "\t\t<body name=\"goal\" pos=\"{pX:.3f} {pY:.3f} 0.125\" euler=\"0 0 {yaw:.3f}\">\n"
     "\t\t\t<geom name=\"goal_geom\" type=\"box\" size=\"0.25 0.25 0.25\" material=\"green\" group=\"2\"/>\n"
     "\t\t</body>"
 )
@@ -218,12 +219,13 @@ def generate_random_goal(area_size, obstacles: list):
 
     random_x = random.uniform(min_x, max_x)
     random_y = random.uniform(min_y, max_y)
+    random_yaw = random.uniform(0, 2 * np.pi)  # Random yaw angle [radians]
     while True:
         if in_robot_area(random_x, random_y) or intersects_with_obstacles(random_x, random_y, obstacles):
             random_x = random.uniform(min_x, max_x)
             random_y = random.uniform(min_y, max_y)
         else:
-            return (random_x, random_y)
+            return (random_x, random_y, yaw)
 
 
 def generate_random_obstacles(num_obstacles: int, area_size: tuple) -> list[Obstacle]:
@@ -290,15 +292,16 @@ def insert_obstacles_raw(obstacles, in_path, out_path):
         f.write(new_xml)
 
 
-def insert_goal_raw(goal_position, in_path, out_path):
+def insert_goal_raw(goal_pose, in_path, out_path):
     # 1) Read the original XML
     with open(in_path, 'r', encoding='utf-8') as f:
         xml = f.read()
 
     # 2) Build the goal string
     goal_string = GOAL_TEMPLATE.format(
-        pX=goal_position[0],
-        pY=goal_position[1]
+        pX=goal_pose[0],
+        pY=goal_pose[1],
+        yaw=goal_pose[2]
     )
 
     # 3) Split on the markers

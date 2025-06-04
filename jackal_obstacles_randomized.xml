@@ -171,7 +171,7 @@
 		<!--END_OBSTACLES-->
 
         <!--START_GOAL-->
-		<body name="goal" pos="1.086 2.838 0.125">
+		<body name="goal" pos="1.086 2.838 0.125" euler="0 0 0">
 			<geom name="goal_geom" type="box" size="0.25 0.25 0.25" material="green" group="2"/>
 		</body>
 		<!--END_GOAL-->

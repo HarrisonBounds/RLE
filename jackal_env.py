@@ -1,4 +1,3 @@
-
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -79,9 +78,6 @@ class Jackal_Env(gym.Env):
         with open('rewards.json', 'r') as file:
             self.rewards = json.load(file)
 
-        self.initial_x = 0.0
-        self.initial_y = 0.0
-
         self.floor_geom_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
 
@@ -108,18 +104,19 @@ class Jackal_Env(gym.Env):
 
         self.roll_pitch_threshold = 0.6
 
+        # Variables for tracking position and distance
         self.prev_x = 0.0
         self.prev_y = 0.0
+        self.total_distance_traveled = 0.0
+        self.total_spin_accumulated = 0.0  # Track total rotation
 
         self.episode_rewards = []  # Stores complete episode rewards
         self.current_episode_rewards = {
-            'alignment': 0.0,
-            'forward': 0.0,
-            'angular_penalty': 0.0,
             'distance': 0.0,
             'goal': 0.0,
             'collision': 0.0,
-            'time_penalty': 0.0,
+            'distance_traveled': 0.0,
+            'spin': 0.0,
             'total': 0.0
         }
 
@@ -169,8 +166,13 @@ class Jackal_Env(gym.Env):
         # Extract current state
         current_x = self.data.qpos[0]
         current_y = self.data.qpos[1]
-        current_heading = self.data.qpos[3]  # Assuming index 3 is orientation (yaw)
-        ang_vel = self.data.qvel[5]  # Angular velocity (rad/s)
+
+        # Get angular velocity (spinning)
+        # Angular velocity around Z-axis
+        angular_velocity = abs(self.data.qvel[5])
+        timestep = self.model.opt.timestep
+        step_rotation = angular_velocity * timestep  # Rotation this step
+        self.total_spin_accumulated += step_rotation
 
         # Set actuators (left and right wheel speeds)
         self.data.ctrl[self.left_front] = action[0]
@@ -180,7 +182,7 @@ class Jackal_Env(gym.Env):
 
         mujoco.mj_step(self.model, self.data)
 
-        # Compute observations (unchanged)
+        # Compute observations
         state_obs = np.concatenate([self.data.qpos.flat, self.data.qvel.flat])
         if self.use_lidar:
             lidar_obs = self.lidar.update()['ranges']
@@ -191,28 +193,26 @@ class Jackal_Env(gym.Env):
         else:
             observation = state_obs.astype(np.float32)
 
-        quaternion = self.data.qpos[3:7]
-        rotation = R.from_quat(quaternion[[1, 2, 3, 0]]) # Convert to (x, y, z, w) for scipy
-        roll, pitch, current_yaw = rotation.as_euler('xyz')
+        # Get new position after step
+        new_x = self.data.qpos[0]
+        new_y = self.data.qpos[1]
 
+        # Calculate distance traveled this step
+        step_distance = np.sqrt((new_x - current_x) **
+                                2 + (new_y - current_y)**2)
+        self.total_distance_traveled += step_distance
+
+        # Calculate distance to goal
         goal_x, goal_y = self.goal_position[:2]
-        dx = goal_x - current_x
-        dy = goal_y - current_y
-        desired_yaw = np.arctan2(dy, dx)
-        distance_to_goal = np.sqrt((current_x - goal_x)**2 + (current_y - goal_y)**2)
+        distance_to_goal = np.sqrt((new_x - goal_x)**2 + (new_y - goal_y)**2)
 
-        angle_diff = np.arctan2(np.sin(desired_yaw - current_yaw), np.cos(desired_yaw - current_yaw))
-
-        # Distance-based shaping
-        prev_distance = np.sqrt((self.prev_x - goal_x)**2 + (self.prev_y - goal_y)**2)
+        # Distance-based shaping (reward for getting closer)
+        prev_distance = np.sqrt((self.prev_x - goal_x)
+                                ** 2 + (self.prev_y - goal_y)**2)
         distance_reduction = prev_distance - distance_to_goal
 
-        linear_velocity = np.sqrt(self.data.qvel[0]**2 + self.data.qvel[1]**2)
-
+        # Initialize reward components
         reward_components = {
-            'alignment': 0.0,
-            'forward': 0.0,
-            'angular_penalty': 0.0,
             'distance': 0.0,
             'goal': 0.0,
             'collision': 0.0,
@@ -231,11 +231,11 @@ class Jackal_Env(gym.Env):
             reward_components['goal'] = self.rewards["goal_reached"]
             terminated = True
 
-        # Collision penalties
+        # 5. Collision penalties
         if self._check_collision(self.robot_geom_ids, self.obstacle_geom_ids):
             reward_components['collision'] = self.rewards["collision_penalty"]
             terminated = True
-        
+
         if self._check_roll_pitch():
             reward_components['collision'] = self.rewards["collision_penalty"]
             terminated = True
@@ -254,9 +254,13 @@ class Jackal_Env(gym.Env):
         self.prev_y = current_y
 
         info['reward_components'] = reward_components.copy()
+        info['distance_to_goal'] = distance_to_goal
+        info['total_distance_traveled'] = self.total_distance_traveled
+        info['total_spin_accumulated'] = self.total_spin_accumulated
+        info['angular_velocity'] = angular_velocity
 
-        return observation, reward, terminated, truncated, info
-    
+        return observation, total_reward, terminated, truncated, info
+
     def get_reward_statistics(self):
         """Returns statistics about rewards across all episodes"""
         if not self.episode_rewards:
@@ -271,7 +275,7 @@ class Jackal_Env(gym.Env):
                 }
                 for component in self.current_episode_rewards.keys()
             }
-        
+
         stats = {}
         for component in self.episode_rewards[0].keys():
             values = [ep[component] for ep in self.episode_rewards]
@@ -291,10 +295,15 @@ class Jackal_Env(gym.Env):
             print("\n--- Episode Reward Summary ---")
             for component, value in self.current_episode_rewards.items():
                 print(f"{component:>15}: {value:10.2f}")
+            print(f"{'Total Distance':>15}: {self.total_distance_traveled:10.2f}m")
+            print(f"{'Total Spin':>15}: {self.total_spin_accumulated:10.2f}rad")
             self.episode_rewards.append(self.current_episode_rewards.copy())
-        
+
         # Reset tracking
-        self.current_episode_rewards = {k: 0.0 for k in self.current_episode_rewards}
+        self.current_episode_rewards = {
+            k: 0.0 for k in self.current_episode_rewards}
+        self.total_distance_traveled = 0.0
+        self.total_spin_accumulated = 0.0
 
         # Generate a new XML file with randomized obstacles and goal position
         # randomize_environment(
@@ -302,10 +311,6 @@ class Jackal_Env(gym.Env):
         #     min_num_obstacles=3,  # Adjust as needed or parameterize
         #     max_num_obstacles=8  # Adjust as needed or parameterize
         # )
-
-        # Get initial positions for displacement
-        self.initial_x = self.data.qpos[0]
-        self.initial_y = self.data.qpos[1]
 
         self.prev_x = 0.0
         self.prev_y = 0.0
@@ -398,4 +403,3 @@ class Jackal_Env(gym.Env):
         if self.viewer:
             self.viewer.close()
         self.viewer = None
-

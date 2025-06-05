@@ -8,7 +8,7 @@ import time
 
 from ppo import PPOAgent 
 
-TRAINED_ACTOR_PATH = "./models/actor_step_XXXXXX.pth" 
+TRAINED_ACTOR_PATH = "./models/actor_step_512.pth" 
 
 DEPLOY_RENDER_MODE = "human" 
 NUM_EVAL_EPISODES = 10 

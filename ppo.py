@@ -20,7 +20,7 @@ class Actor(nn.Module):
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
-        
+
         raw_action_mean = self.fc4(x)
 
         action_mean = self.action_scale.to(raw_action_mean.device) * torch.tanh(raw_action_mean) + self.action_bias.to(raw_action_mean.device)
@@ -105,7 +105,7 @@ class PPOAgent:
         self.entropy_coef = entropy_coef
         self.gae_lambda = gae_lambda
 
-        self.actor = Actor(state_dim, action_dim)
+        self.actor = Actor(state_dim, action_dim, action_space_low, action_space_high)
         self.critic = Critic(state_dim)
         self.optimizer_actor = optim.Adam(self.actor.parameters(), lr=lr_actor)
         self.optimizer_critic = optim.Adam(self.critic.parameters(), lr=lr_critic)
@@ -133,13 +133,14 @@ class PPOAgent:
         else:
             action = action_distribution.sample()
 
+        
         log_prob = action_distribution.log_prob(action).sum(axis=-1) 
 
-        action_np = action.detach().cpu().numpy()
+        action_np = action.detach().cpu().numpy().flatten() 
         
-       
-        action_np = np.clip(action_np, self.action_space_low.cpu().numpy(), self.action_space_high.cpu().numpy())
+        action_np = np.clip(action_np, self.action_space_low, self.action_space_high)
 
+        
         return action_np, log_prob.item() if not evaluate else None
 
     def compute_advantages_and_returns(self, rewards, values, next_values, dones):

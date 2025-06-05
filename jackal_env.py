@@ -112,6 +112,7 @@ class Jackal_Env(gym.Env):
 
         self.episode_rewards = []  # Stores complete episode rewards
         self.current_episode_rewards = {
+            'alignment': 0.0,
             'distance': 0.0,
             'goal': 0.0,
             'collision': 0.0,
@@ -167,6 +168,8 @@ class Jackal_Env(gym.Env):
         current_x = self.data.qpos[0]
         current_y = self.data.qpos[1]
 
+        linear_velocity = self.data.qvel[0]
+
         # Get angular velocity (spinning)
         # Angular velocity around Z-axis
         angular_velocity = abs(self.data.qvel[5])
@@ -211,6 +214,20 @@ class Jackal_Env(gym.Env):
                                 ** 2 + (self.prev_y - goal_y)**2)
         distance_reduction = prev_distance - distance_to_goal
 
+        robot_to_goal_vec_x_world = goal_x - new_x
+        robot_to_goal_vec_y_world = goal_y - new_y
+
+        quaternion_after_step = self.data.qpos[3:7]
+        rotation_after_step = R.from_quat(quaternion_after_step[[1, 2, 3, 0]])
+        _, _, current_heading_rad = rotation_after_step.as_euler('xyz')
+
+        cos_heading = np.cos(-current_heading_rad)
+        sin_heading = np.sin(-current_heading_rad)
+
+        robot_to_goal_vec_x_local = robot_to_goal_vec_x_world * cos_heading - robot_to_goal_vec_y_world * sin_heading
+        robot_to_goal_vec_y_local = robot_to_goal_vec_x_world * sin_heading + robot_to_goal_vec_y_world * cos_heading
+        angle_diff = np.arctan2(robot_to_goal_vec_y_local, robot_to_goal_vec_x_local)
+
         # Initialize reward components
         reward_components = {
             'distance': 0.0,
@@ -222,7 +239,7 @@ class Jackal_Env(gym.Env):
         # Calculate base rewards
         reward_components['alignment'] = self.rewards["alignment_reward"] * np.cos(angle_diff)
         reward_components['forward'] = self.rewards["forward_motion"] * linear_velocity * np.cos(angle_diff)
-        reward_components['angular_penalty'] = self.rewards["angular_penalty"] * (abs(ang_vel) ** 2)
+        reward_components['angular_penalty'] = self.rewards["angular_penalty"] * (abs(angular_velocity) ** 2)
         reward_components['distance'] = self.rewards["distance"] * distance_reduction
         reward_components['time_penalty'] = self.rewards.get("time_penalty", 0.01)
 

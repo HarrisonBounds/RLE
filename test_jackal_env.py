@@ -13,7 +13,7 @@ STEPS_PER_BATCH = 512 # Number of environment steps to collect before a PPO upda
 
 # --- Logging & Saving ---
 LOG_INTERVAL_EPISODES = 10
-SAVE_MODEL_INTERVAL_STEPS = 100000
+SAVE_MODEL_INTERVAL_STEPS = STEPS_PER_BATCH
 MODEL_DIR = "./models"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
@@ -26,7 +26,7 @@ print(f"Using device: {DEVICE}")
 # Set up Env
 env = Jackal_Env(
     xml_file="jackal_obstacles.xml",
-    render_mode="human",
+    render_mode=None,
     use_lidar=True
 )
 

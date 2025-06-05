@@ -144,14 +144,18 @@
         <!-- Walls Enclosing the Robot [-5, 5] 10x10 Arena -->
         <body name="wall1" pos="5 0 0.5">
             <geom type="box" size="0.1 5 0.5" material="wallColor" group="1"/>
+            <geom type="box" size="0.1 5 0.5" material="wallColor" group="1"/>
         </body>
         <body name="wall2" pos="-5 0 0.5">
+            <geom type="box" size="0.1 5 0.5" material="wallColor" group="1"/>
             <geom type="box" size="0.1 5 0.5" material="wallColor" group="1"/>
         </body>
         <body name="wall3" pos="0 5 0.5">
             <geom type="box" size="5 0.1 0.5" material="wallColor" group="1"/>
+            <geom type="box" size="5 0.1 0.5" material="wallColor" group="1"/>
         </body>
         <body name="wall4" pos="0 -5 0.5">
+            <geom type="box" size="5 0.1 0.5" material="wallColor" group="1"/>
             <geom type="box" size="5 0.1 0.5" material="wallColor" group="1"/>
         </body>
     

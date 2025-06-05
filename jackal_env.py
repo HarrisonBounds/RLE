@@ -454,7 +454,15 @@ class Jackal_Env(gym.Env):
         if self.render_mode == "human":
             if self.viewer is None:
                 self.viewer = mujoco.viewer.launch_passive(
-                    self.model, self.data)
+                    self.model, self.data, show_left_ui=False, show_right_ui=False)
+                # Set camera to show birds-eye view
+                self.viewer.cam.type = mujoco.mjtCamera.mjCAMERA_FREE
+                self.viewer.cam.lookat[:] = [
+                    # Look at the robot
+                    self.data.qpos[0], self.data.qpos[1], 0.5]
+                self.viewer.cam.distance = 16.0  # Distance from the robot
+                self.viewer.cam.azimuth = 0.0
+                self.viewer.cam.elevation = -90.0
             else:
                 self.viewer.sync()
 

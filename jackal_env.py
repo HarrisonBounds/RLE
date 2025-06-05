@@ -131,6 +131,18 @@ class Jackal_Env(gym.Env):
         self.prev_robot_x = 0.0
         self.prev_robot_y = 0.0
 
+        # Saving reward history for plotting after training
+        self.reward_dictionary = {
+            "episodes": [],
+            "total_reward": [],
+            "distance_progress": [],
+            "alignment": [],
+            "distance_traveled_penalty": [],
+        }
+
+    def get_reward_history(self):
+        return self.reward_dictionary
+
     def extract_goal_pose(self):
         self.goal_geom_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "goal_geom"
@@ -360,6 +372,17 @@ class Jackal_Env(gym.Env):
         info['position_achieved'] = self.position_achieved
 
         print(f"Current Reward: {reward}")
+
+        # Update reward history for plotting
+        self.reward_dictionary["episodes"].append(
+            len(self.reward_dictionary["total_reward"]) + 1)
+        self.reward_dictionary["total_reward"].append(reward)
+        self.reward_dictionary["distance_progress"].append(
+            self.rewards["distance_progress"] * distance_reduction)
+        self.reward_dictionary["alignment"].append(
+            self.rewards["alignment"] * (np.cos(angle_to_goal) if not self.position_achieved else 2.0 * np.cos(goal_heading_diff)))
+        self.reward_dictionary["distance_traveled_penalty"].append(
+            self.rewards["distance_traveled_penalty"] * distance_step)
 
         return observation, reward, terminated, truncated, info
 

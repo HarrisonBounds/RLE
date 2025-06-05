@@ -6,6 +6,8 @@ from ppo import PPOAgent
 import numpy as np
 import torch
 import os
+import matplotlib.pyplot as plt
+
 
 # --- Training Hyperparameters ---
 TOTAL_TIMESTEPS = 1_000_000
@@ -14,9 +16,12 @@ MAX_STEPS = STEPS_PER_BATCH * 8
 
 # --- Logging & Saving ---
 LOG_INTERVAL_EPISODES = 10
+PLOT_INTERVAL_EPISODES = 100
 SAVE_MODEL_INTERVAL_STEPS = 100000
 MODEL_DIR = "./models"
+PLOT_DIR = "./plots"
 os.makedirs(MODEL_DIR, exist_ok=True)
+os.makedirs(PLOT_DIR, exist_ok=True)
 
 # --- Device configuration ---
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -68,13 +73,44 @@ raw_observation, info = env.reset()  # Renamed to raw_observation for clarity
 processed_state = np.concatenate(
     [raw_observation['state'].flatten(), raw_observation['lidar'].flatten()])
 
+
+def create_reward_plots(reward_history, save_path):
+    # reward_dictionary = {
+    #     "episodes": [],
+    #     "total_reward": [],
+    #     "distance_progress": [],
+    #     "alignment": [],
+    #     "distance_traveled_penalty": [],
+    # }
+    fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+    reward_keys = [k for k in reward_history.keys() if k != 'episodes']
+    steps = reward_history['episodes']
+    axs = axs.flatten()
+    for idx, key in enumerate(reward_keys):
+        ax = axs[idx]
+        if key not in reward_history:
+            continue
+        ax.plot(steps, reward_history[key], label=key)
+        ax.set_xlim(left=0, right=max(steps))
+        ax.set_ylim(bottom=min(reward_history[key]), top=max(
+            reward_history[key]))
+        title = key.replace('_', ' ').title()
+        ax.set_title(f'{title} over Episodes')
+        ax.set_xlabel('Episode')
+        ax.set_ylabel('Reward')
+        ax.legend(loc='upper right')
+        ax.grid()
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
+
+
 # --- Training Loop Variables ---
 global_step = 0
 episode_reward_sum = 0
 episode_steps = 0
 episode_count = 0
 batch_number = 0
-
 # ---------------------------------------------------------------------------------------------------
 
 print("\n--- Starting PPO Training ---")
@@ -83,7 +119,7 @@ try:
         batch_steps = 0
 
         while batch_steps < STEPS_PER_BATCH:
-            #print(f"Global step: {global_step}")
+            # print(f"Global step: {global_step}")
 
             if global_step >= MAX_STEPS:
                 truncated = True
@@ -151,6 +187,11 @@ try:
             torch.save(agent.critic.state_dict(), os.path.join(
                 MODEL_DIR, f"critic_step_{global_step}.pth"))
             print(f"Models saved at {global_step} timesteps.")
+        if episode_count % PLOT_INTERVAL_EPISODES == 0:
+            # Create and save reward plots
+            create_reward_plots(env.get_reward_history(), os.path.join(
+                PLOT_DIR, f"reward_plot_step_{global_step}.png"))
+            print(f"Reward plots saved at {global_step} timesteps.")
 
 except KeyboardInterrupt:
     print("\nTraining interrupted by user.")

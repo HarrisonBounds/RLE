@@ -22,6 +22,12 @@ MODEL_DIR = "./models"
 PLOT_DIR = "./plots"
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(PLOT_DIR, exist_ok=True)
+# Clear the plot directory contents if it exists
+if os.path.exists(PLOT_DIR):
+    for file in os.listdir(PLOT_DIR):
+        file_path = os.path.join(PLOT_DIR, file)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
 
 # --- Device configuration ---
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

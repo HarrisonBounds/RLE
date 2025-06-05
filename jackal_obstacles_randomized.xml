@@ -160,19 +160,19 @@
         </body>
     
         <!--START_OBSTACLES-->
-		<body name="obstacle1" pos="-4.993 -4.487 0.130">
-			<geom type="box" size="0.73 0.72 0.26" material="obstacleColor" group="1"/>
+		<body name="obstacle1" pos="2.565 -0.016 0.165">
+			<geom type="cylinder" size="0.73 0.33" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle2" pos="-4.497 4.279 0.530">
-			<geom type="cylinder" size="0.24 1.06" material="obstacleColor" group="1"/>
+		<body name="obstacle2" pos="3.617 3.194 0.220">
+			<geom type="box" size="1.99 1.71 0.44" material="obstacleColor" group="1"/>
 		</body>
-		<body name="obstacle3" pos="-0.250 3.871 0.115">
-			<geom type="box" size="1.86 0.86 0.23" material="obstacleColor" group="1"/>
+		<body name="obstacle3" pos="-3.259 -2.111 0.860">
+			<geom type="sphere" size="0.86" material="obstacleColor" group="1"/>
 		</body>
 		<!--END_OBSTACLES-->
 
         <!--START_GOAL-->
-		<body name="goal" pos="4.830 4.427 0.075" euler="0 0 -1.548">
+		<body name="goal" pos="2.155 2.001 0.075" euler="0 0 -2.026">
 			<geom name="goal_geom" type="box" size="0.15 0.15 0.15" material="green" group="0" contype="0" conaffinity="0"/>
 		</body>
 		<!--END_GOAL-->

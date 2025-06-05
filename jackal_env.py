@@ -222,7 +222,7 @@ class Jackal_Env(gym.Env):
         # Calculate base rewards
         reward_components['alignment'] = self.rewards["alignment_reward"] * np.cos(angle_diff)
         reward_components['forward'] = self.rewards["forward_motion"] * linear_velocity * np.cos(angle_diff)
-        reward_components['angular_penalty'] = self.rewards["angular_penalty"] * abs(ang_vel)
+        reward_components['angular_penalty'] = self.rewards["angular_penalty"] * (abs(ang_vel) ** 2)
         reward_components['distance'] = self.rewards["distance"] * distance_reduction
         reward_components['time_penalty'] = self.rewards.get("time_penalty", 0.01)
 
@@ -244,9 +244,11 @@ class Jackal_Env(gym.Env):
         total_reward = sum(reward_components.values())
         reward_components['total'] = total_reward
 
-        # Update current episode tracking
-        for key in self.current_episode_rewards:
-            self.current_episode_rewards[key] += reward_components[key]
+        for key, value in reward_components.items(): 
+            if key in self.current_episode_rewards: 
+                self.current_episode_rewards[key] += value
+            else:
+                self.current_episode_rewards[key] = value 
 
         self.prev_x = current_x
         self.prev_y = current_y

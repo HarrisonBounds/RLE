@@ -6,19 +6,27 @@ from torch.distributions import Normal
 import numpy as np
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim):
+    def __init__(self, state_dim, action_dim, action_space_low, action_space_high):
         super(Actor, self).__init__()
         self.fc1 = nn.Linear(state_dim, 256)
         self.fc2 = nn.Linear(256, 256)
         self.fc3 = nn.Linear(256, 256)
         self.fc4 = nn.Linear(256, action_dim) 
         self.log_std = nn.Parameter(torch.zeros(1, action_dim)) 
+
+        self.action_scale = torch.tensor((action_space_high - action_space_low) / 2.0, dtype=torch.float32)
+        self.action_bias = torch.tensor((action_space_high + action_space_low) / 2.0, dtype=torch.float32)
     def forward(self, state):
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
-        action_mean = torch.tanh(self.fc4(x)) 
-        action_std = torch.exp(self.log_std)
+        
+        raw_action_mean = self.fc4(x)
+
+        action_mean = self.action_scale.to(raw_action_mean.device) * torch.tanh(raw_action_mean) + self.action_bias.to(raw_action_mean.device)
+
+        clamped_log_std = self.log_std.clamp(-20, 2) 
+        action_std = torch.exp(clamped_log_std)
         return action_mean, action_std 
 
 class Critic(nn.Module):
@@ -54,6 +62,7 @@ class ReplayBuffer:
         self.log_probs.append(log_prob)
 
     def get_batch(self):
+        current_buffer_size = len(self.states)
         # Extract total rewards from the components for PPO update
         rewards_total = torch.tensor([r['total'] for r in self.rewards_components], dtype=torch.float32)
 
@@ -73,6 +82,8 @@ class ReplayBuffer:
             'batch_reward_summary': batch_reward_summary # Add the component summary
         }
         self.clear()
+
+        batch['actual_batch_size'] = current_buffer_size 
         return batch
 
     def clear(self):
@@ -109,25 +120,27 @@ class PPOAgent:
         self.action_space_low = torch.tensor(action_space_low, dtype=torch.float32, device=self.device)
         self.action_space_high = torch.tensor(action_space_high, dtype=torch.float32, device=self.device)
 
-    def select_action(self, observation):
+    def select_action(self, state, evaluate=False):
+        state_tensor = torch.tensor(state, dtype=torch.float32).to(self.device)
+
+        with torch.no_grad():
+            action_mean, action_std = self.actor(state_tensor) 
+            
+            action_distribution = Normal(action_mean, action_std)
+
+        if evaluate:
+            action = action_distribution.mean
+        else:
+            action = action_distribution.sample()
+
+        log_prob = action_distribution.log_prob(action).sum(axis=-1) 
+
+        action_np = action.detach().cpu().numpy()
         
-        processed_state = observation
+       
+        action_np = np.clip(action_np, self.action_space_low.cpu().numpy(), self.action_space_high.cpu().numpy())
 
-        state_tensor = torch.tensor(processed_state, dtype=torch.float32).unsqueeze(0)
-        state_tensor = state_tensor.to(self.device)
-
-        #Forward Pass
-        with torch.no_grad(): 
-            action_mean, action_std = self.actor(state_tensor)
-        
-        #Create normal distribution and sample from it
-        dist = Normal(action_mean, action_std)
-        action = dist.sample()
-        log_prob = dist.log_prob(action).sum(axis=-1)
-
-        clipped_action = torch.clamp(action, self.action_space_low, self.action_space_high)
-
-        return clipped_action.squeeze(0).cpu().numpy(), log_prob.cpu().item()
+        return action_np, log_prob.item() if not evaluate else None
 
     def compute_advantages_and_returns(self, rewards, values, next_values, dones):
         #Squeeze out the batch dimension
@@ -166,7 +179,8 @@ class PPOAgent:
     def update(self):
 
         batch = self.buffer.get_batch()
-        batch_reward_summary = batch.pop('batch_reward_summary') # Extract and remove from batch dict
+        batch_reward_summary = batch.pop('batch_reward_summary')
+        actual_batch_size = batch.pop('actual_batch_size')
 
         #Organize data
         states = batch['states']
@@ -237,7 +251,7 @@ class PPOAgent:
 
             #print(f"Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}, Entropy: {entropy.item():.4f}")
 
-            return batch_reward_summary
+            return batch_reward_summary, actual_batch_size
 
             
 

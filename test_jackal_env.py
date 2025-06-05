@@ -121,9 +121,9 @@ try:
 
         if len(agent.buffer.states) > 0:
             batch_number += 1
-            batch_component_summary = agent.update() # agent.update() will clear the buffer
+            batch_component_summary, actual_batch_size = agent.update() # agent.update() will clear the buffer
             
-            print(f"\n--- PPO Batch Update {batch_number} Completed ({len(agent.buffer.states)} steps) ---")
+            print(f"\n--- PPO Batch Update {batch_number} Completed ({actual_batch_size} steps) ---")
             
             print("Reward Contributions for Current Batch:")
             for component, total_value in batch_component_summary.items():

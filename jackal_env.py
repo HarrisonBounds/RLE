@@ -121,7 +121,7 @@ class Jackal_Env(gym.Env):
         self.prev_y = 0.0
 
         # Two-stage goal achievement
-        self.position_threshold = 0.4  # meters for position achievement
+        self.position_threshold = 0.6  # meters for position achievement
         # radians for orientation achievement (~11 degrees)
         self.orientation_threshold = 0.2
         self.position_achieved = False
@@ -233,6 +233,16 @@ class Jackal_Env(gym.Env):
                 f"TERMINATION: Roll/Pitch too extreme! Roll: {np.degrees(roll):.2f} deg, Pitch: {np.degrees(pitch):.2f} deg")
             return True
         return False
+
+    def smooth_action(self, action, alpha=0.8):
+        # a_smooth alpha * prev_action + (1 - alpha) * a_raw
+        if not hasattr(self, 'prev_action'):
+            self.prev_action = np.zeros_like(action)
+        smoothed_action = alpha * self.prev_action + (1 - alpha) * action
+        # Clip to action space limits
+        smoothed_action = np.clip(
+            smoothed_action, self.action_space.low, self.action_space.high)
+        return smoothed_action
 
     def step(self, action):
         # Initialize reward and flags

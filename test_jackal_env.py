@@ -16,7 +16,6 @@ MAX_STEPS = STEPS_PER_BATCH * 8
 
 # --- Logging & Saving ---
 LOG_INTERVAL_EPISODES = 10
-PLOT_INTERVAL_EPISODES = 100
 SAVE_MODEL_INTERVAL_STEPS = 100000
 MODEL_DIR = "./models"
 PLOT_DIR = "./plots"
@@ -133,11 +132,12 @@ try:
             # Pass the ALREADY PROCESSED (flattened/concatenated) state to select_action
             action, log_prob = agent.select_action(processed_state)
 
-            # action = [0.5, 0.5]
+            # Smooth action
+            action_smooth = env.smooth_action(action, alpha=0.9)
 
             # Take environment step
             raw_new_observation, reward, terminated, truncated, info = env.step(
-                action)
+                action_smooth)
             env.render()
 
             # Process the new raw observation for the agent and buffer
@@ -149,7 +149,7 @@ try:
             # Store experience in the agent's replay buffer
             agent.buffer.store(
                 processed_state,  # Store the processed state
-                action,
+                action_smooth,
                 reward,
                 new_processed_state,  # Store the new processed state
                 done_flag,
@@ -175,7 +175,6 @@ try:
                 # Process the new initial raw observation for the next step
                 processed_state = np.concatenate(
                     [raw_observation['state'].flatten(), raw_observation['lidar'].flatten()])
-
                 # Reset episode specific counters
                 episode_reward_sum = 0
                 episode_steps = 0
@@ -193,11 +192,10 @@ try:
             torch.save(agent.critic.state_dict(), os.path.join(
                 MODEL_DIR, f"critic_step_{global_step}.pth"))
             print(f"Models saved at {global_step} timesteps.")
-        if episode_count % PLOT_INTERVAL_EPISODES == 0:
-            # Create and save reward plots
-            create_reward_plots(env.get_reward_history(), os.path.join(
-                PLOT_DIR, f"reward_plot_step_{global_step}.png"))
-            print(f"Reward plots saved at {global_step} timesteps.")
+        # Plot the reward history every batch update
+        create_reward_plots(env.get_reward_history(), os.path.join(
+            PLOT_DIR, f"reward_plot_step_{global_step}.png"))
+        print(f"Reward plots saved at {global_step} timesteps.")
 
 except KeyboardInterrupt:
     print("\nTraining interrupted by user.")

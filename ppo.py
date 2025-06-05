@@ -133,14 +133,11 @@ class PPOAgent:
         else:
             action = action_distribution.sample()
 
-        
+        action_clamped = torch.clamp(action, self.action_space_low, self.action_space_high)
         log_prob = action_distribution.log_prob(action).sum(axis=-1) 
 
-        action_np = action.detach().cpu().numpy().flatten() 
-        
-        action_np = np.clip(action_np, self.action_space_low, self.action_space_high)
+        action_np = action_clamped.detach().cpu().numpy().flatten() 
 
-        
         return action_np, log_prob.item() if not evaluate else None
 
     def compute_advantages_and_returns(self, rewards, values, next_values, dones):
@@ -252,7 +249,7 @@ class PPOAgent:
 
             #print(f"Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}, Entropy: {entropy.item():.4f}")
 
-            return batch_reward_summary, actual_batch_size
+        return batch_reward_summary, actual_batch_size
 
             
 

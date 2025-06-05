@@ -9,11 +9,11 @@ import os
 
 # --- Training Hyperparameters ---
 TOTAL_TIMESTEPS = 1_000_000
-STEPS_PER_BATCH = 512 # Number of environment steps to collect before a PPO update
+STEPS_PER_BATCH = 512 
 
 # --- Logging & Saving ---
 LOG_INTERVAL_EPISODES = 10
-SAVE_MODEL_INTERVAL_STEPS = STEPS_PER_BATCH
+SAVE_MODEL_INTERVAL_STEPS = STEPS_PER_BATCH * 50
 MODEL_DIR = "./models"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
@@ -26,7 +26,7 @@ print(f"Using device: {DEVICE}")
 # Set up Env
 env = Jackal_Env(
     xml_file="jackal_obstacles.xml",
-    render_mode=None,
+    render_mode="human",
     use_lidar=True
 )
 

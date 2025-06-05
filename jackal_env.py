@@ -308,13 +308,13 @@ class Jackal_Env(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
 
-        if self.current_episode_rewards['total'] != 0:
-            print("\n--- Episode Reward Summary ---")
-            for component, value in self.current_episode_rewards.items():
-                print(f"{component:>15}: {value:10.2f}")
-            print(f"{'Total Distance':>15}: {self.total_distance_traveled:10.2f}m")
-            print(f"{'Total Spin':>15}: {self.total_spin_accumulated:10.2f}rad")
-            self.episode_rewards.append(self.current_episode_rewards.copy())
+        # if self.current_episode_rewards['total'] != 0:
+        #     print("\n--- Episode Reward Summary ---")
+        #     for component, value in self.current_episode_rewards.items():
+        #         print(f"{component:>15}: {value:10.2f}")
+        #     print(f"{'Total Distance':>15}: {self.total_distance_traveled:10.2f}m")
+        #     print(f"{'Total Spin':>15}: {self.total_spin_accumulated:10.2f}rad")
+        #     self.episode_rewards.append(self.current_episode_rewards.copy())
 
         # Reset tracking
         self.current_episode_rewards = {
@@ -375,7 +375,7 @@ class Jackal_Env(gym.Env):
 
         # Reassign the goal position
         self.goal_position = self.extract_goal_position()
-        print(f"goal position: {self.goal_position}")
+        #print(f"goal position: {self.goal_position}")
 
         # Get the basic observation
         state_obs = np.concatenate([self.data.qpos.flat, self.data.qvel.flat])

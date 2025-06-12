@@ -348,7 +348,7 @@ class Jackal_Env(gym.Env):
         # ========== DIRECTIONAL ALIGNMENT ==========
         if not self.position_achieved:
             # When far from goal, encourage pointing toward goal position
-            reward += self.rewards["alignment"] * (np.cos(angle_to_goal)**2)
+            reward += self.rewards["alignment"] * (np.cos(angle_to_goal))
         else:
             # When at goal position, encourage aligning with goal orientation
             orientation_alignment = np.cos(goal_heading_diff)

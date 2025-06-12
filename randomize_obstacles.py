@@ -1,12 +1,19 @@
 import xml.etree.ElementTree as ET
 import random
 import time
+import numpy as np
 
 # Tags in XML to identify where to insert generated obstacles
 START_TAG = "<!--START_OBSTACLES-->"
 END_TAG = "<!--END_OBSTACLES-->"
 GOAL_START_TAG = "<!--START_GOAL-->"
 GOAL_END_TAG = "<!--END_GOAL-->"
+
+# Goal configuration
+GOAL_SIZE = "0.15 0.15 0.15"  # Smaller goal cube (was 0.25 0.25 0.25)
+GOAL_HEIGHT = 0.15  # Height of goal cube (should match the Z size above)
+# Minimum clearance around goal to prevent spawning too close to obstacles
+GOAL_CLEARANCE = 0.3
 
 # Template for an obstacle in the XML file
 OBSTACLE_TEMPLATE = (
@@ -16,8 +23,8 @@ OBSTACLE_TEMPLATE = (
 )
 
 GOAL_TEMPLATE = (
-    "\t\t<body name=\"goal\" pos=\"{pX:.3f} {pY:.3f} 0.125\">\n"
-    "\t\t\t<geom name=\"goal_geom\" type=\"box\" size=\"0.25 0.25 0.25\" material=\"green\" group=\"2\"/>\n"
+    "\t\t<body name=\"goal\" pos=\"{pX:.3f} {pY:.3f} {goal_z:.3f}\" euler=\"0 0 {yaw:.3f}\">\n"
+    "\t\t\t<geom name=\"goal_geom\" type=\"box\" size=\"{goal_size}\" material=\"green\" group=\"0\" contype=\"0\" conaffinity=\"0\"/>\n"
     "\t\t</body>"
 )
 
@@ -211,19 +218,42 @@ def generate_random_goal(area_size, obstacles: list):
 
     def intersects_with_obstacles(x, y, obstacles):
         # Check if the goal position intersects with any existing obstacles
+        # Use the actual goal size and add clearance buffer
+        goal_sizes = [float(s) for s in GOAL_SIZE.split()]
+        goal_l, goal_w, goal_h = goal_sizes
+        goal_z = goal_h / 2  # Goal center Z position
+
+        # Create a goal obstacle with clearance buffer
+        buffered_size = f"{goal_l + GOAL_CLEARANCE} {goal_w + GOAL_CLEARANCE} {goal_h}"
+        goal_obstacle = Obstacle(-1, "box", buffered_size, (x, y, goal_z))
+
         for obst in obstacles:
-            if obst.intersects(Obstacle(-1, "box", "0.25 0.25 0.25", (x, y, 0.125))):
+            if obst.intersects(goal_obstacle):
                 return True
         return False
 
-    random_x = random.uniform(min_x, max_x)
-    random_y = random.uniform(min_y, max_y)
-    while True:
-        if in_robot_area(random_x, random_y) or intersects_with_obstacles(random_x, random_y, obstacles):
-            random_x = random.uniform(min_x, max_x)
-            random_y = random.uniform(min_y, max_y)
-        else:
-            return (random_x, random_y)
+    max_attempts = 1000  # Prevent infinite loops
+    attempts = 0
+
+    while attempts < max_attempts:
+        random_x = random.uniform(min_x, max_x)
+        random_y = random.uniform(min_y, max_y)
+        random_yaw = random.uniform(-np.pi, np.pi)  # Random yaw in radians
+
+        if not in_robot_area(random_x, random_y) and not intersects_with_obstacles(random_x, random_y, obstacles):
+            return (random_x, random_y, random_yaw)
+
+        attempts += 1
+
+    # If we can't find a valid position after many attempts, just place it far from robot
+    print("Warning: Could not find collision-free goal position, placing at fallback location")
+    fallback_positions = [(4, 4, 0), (-4, 4, 0), (4, -4, 0), (-4, -4, 0)]
+    for pos_x, pos_y, _ in fallback_positions:
+        if not intersects_with_obstacles(pos_x, pos_y, obstacles):
+            return (pos_x, pos_y, random.uniform(-np.pi, np.pi))
+
+    # Last resort - just place it somewhere and hope for the best
+    return (3, 3, 0)
 
 
 def generate_random_obstacles(num_obstacles: int, area_size: tuple) -> list[Obstacle]:
@@ -290,15 +320,19 @@ def insert_obstacles_raw(obstacles, in_path, out_path):
         f.write(new_xml)
 
 
-def insert_goal_raw(goal_position, in_path, out_path):
+def insert_goal_raw(goal_pose, in_path, out_path):
     # 1) Read the original XML
     with open(in_path, 'r', encoding='utf-8') as f:
         xml = f.read()
 
-    # 2) Build the goal string
+    # 2) Build the goal string with proper goal size and Z position
+    goal_z = GOAL_HEIGHT / 2  # Goal center should be at half its height
     goal_string = GOAL_TEMPLATE.format(
-        pX=goal_position[0],
-        pY=goal_position[1]
+        pX=goal_pose[0],
+        pY=goal_pose[1],
+        goal_z=goal_z,
+        yaw=goal_pose[2],
+        goal_size=GOAL_SIZE
     )
 
     # 3) Split on the markers

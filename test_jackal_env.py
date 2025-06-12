@@ -6,6 +6,8 @@ from ppo import PPOAgent
 import numpy as np
 import torch
 import os
+import matplotlib.pyplot as plt
+
 
 # --- Training Hyperparameters ---
 TOTAL_TIMESTEPS = 1_000_000
@@ -16,7 +18,15 @@ MAX_STEPS = STEPS_PER_BATCH * 8
 LOG_INTERVAL_EPISODES = 10
 SAVE_MODEL_INTERVAL_STEPS = 100000
 MODEL_DIR = "./models"
+PLOT_DIR = "./plots"
 os.makedirs(MODEL_DIR, exist_ok=True)
+os.makedirs(PLOT_DIR, exist_ok=True)
+# Clear the plot directory contents if it exists
+if os.path.exists(PLOT_DIR):
+    for file in os.listdir(PLOT_DIR):
+        file_path = os.path.join(PLOT_DIR, file)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
 
 # --- Device configuration ---
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -65,8 +75,44 @@ agent.critic.to(DEVICE)
 # Reset env and get first observation
 raw_observation, info = env.reset()  # Renamed to raw_observation for clarity
 # Process the Dict observation for the agent input
+# processed_state = np.concatenate(
+#     [raw_observation['state'].flatten(), raw_observation['lidar'].flatten()])
+# Compress LiDAR using the environment's method
+compressed_lidar = env._preprocess_lidar(raw_observation['lidar'])
 processed_state = np.concatenate(
-    [raw_observation['state'].flatten(), raw_observation['lidar'].flatten()])
+    [raw_observation['state'].flatten(), compressed_lidar])
+
+
+def create_reward_plots(reward_history, save_path):
+    # reward_dictionary = {
+    #     "episodes": [],
+    #     "total_reward": [],
+    #     "distance_progress": [],
+    #     "alignment": [],
+    #     "distance_traveled_penalty": [],
+    # }
+    fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+    reward_keys = [k for k in reward_history.keys() if k != 'episodes']
+    steps = reward_history['episodes']
+    axs = axs.flatten()
+    for idx, key in enumerate(reward_keys):
+        ax = axs[idx]
+        if key not in reward_history:
+            continue
+        ax.plot(steps, reward_history[key], label=key)
+        ax.set_xlim(left=0, right=max(steps))
+        ax.set_ylim(bottom=min(reward_history[key]), top=max(
+            reward_history[key]))
+        title = key.replace('_', ' ').title()
+        ax.set_title(f'{title} over Episodes')
+        ax.set_xlabel('Episode')
+        ax.set_ylabel('Reward')
+        ax.legend(loc='upper right')
+        ax.grid()
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
+
 
 # --- Training Loop Variables ---
 global_step = 0
@@ -74,7 +120,6 @@ episode_reward_sum = 0
 episode_steps = 0
 episode_count = 0
 batch_number = 0
-
 # ---------------------------------------------------------------------------------------------------
 
 print("\n--- Starting PPO Training ---")
@@ -83,7 +128,7 @@ try:
         batch_steps = 0
 
         while batch_steps < STEPS_PER_BATCH:
-            #print(f"Global step: {global_step}")
+            # print(f"Global step: {global_step}")
 
             if global_step >= MAX_STEPS:
                 truncated = True
@@ -91,23 +136,26 @@ try:
             # Pass the ALREADY PROCESSED (flattened/concatenated) state to select_action
             action, log_prob = agent.select_action(processed_state)
 
-            # action = [0.5, 0.5]
+            # Smooth action
+            action_smooth = env.smooth_action(action, alpha=0.9)
 
             # Take environment step
             raw_new_observation, reward, terminated, truncated, info = env.step(
-                action)
+                action_smooth)
             env.render()
 
             # Process the new raw observation for the agent and buffer
+            compressed_lidar = env._preprocess_lidar(
+                raw_new_observation['lidar'])
             new_processed_state = np.concatenate(
-                [raw_new_observation['state'].flatten(), raw_new_observation['lidar'].flatten()])
+                [raw_new_observation['state'].flatten(), compressed_lidar])
 
             done_flag = True if terminated or truncated else False
 
             # Store experience in the agent's replay buffer
             agent.buffer.store(
                 processed_state,  # Store the processed state
-                action,
+                action_smooth,
                 reward,
                 new_processed_state,  # Store the new processed state
                 done_flag,
@@ -131,9 +179,10 @@ try:
                 # Reset environment and get new raw observation
                 raw_observation, info = env.reset()
                 # Process the new initial raw observation for the next step
+                compressed_lidar = env._preprocess_lidar(
+                    raw_observation['lidar'])
                 processed_state = np.concatenate(
-                    [raw_observation['state'].flatten(), raw_observation['lidar'].flatten()])
-
+                    [raw_observation['state'].flatten(), compressed_lidar])
                 # Reset episode specific counters
                 episode_reward_sum = 0
                 episode_steps = 0
@@ -151,6 +200,10 @@ try:
             torch.save(agent.critic.state_dict(), os.path.join(
                 MODEL_DIR, f"critic_step_{global_step}.pth"))
             print(f"Models saved at {global_step} timesteps.")
+        # Plot the reward history every batch update
+        create_reward_plots(env.get_reward_history(), os.path.join(
+            PLOT_DIR, f"reward_plot_step_{global_step}.png"))
+        print(f"Reward plots saved at {global_step} timesteps.")
 
 except KeyboardInterrupt:
     print("\nTraining interrupted by user.")

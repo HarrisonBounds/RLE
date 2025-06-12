@@ -16,7 +16,7 @@ import os
 
 class Jackal_Env(gym.Env):
     def __init__(self, xml_file="jackal_obstacles.xml", render_mode=None,
-                 use_lidar=True, num_lidar_rays_h=360, num_lidar_rays_v=16,
+                 use_lidar=True, num_lidar_rays_h=90, num_lidar_rays_v=16,
                  lidar_max_range=10.0):
         super().__init__()
 
@@ -309,9 +309,8 @@ class Jackal_Env(gym.Env):
             (current_x - goal_x)**2 + (current_y - goal_y)**2)
         angle_to_goal = np.arctan2(
             goal_y - current_y, goal_x - current_x) - current_heading
-        angle_to_goal = (angle_to_goal + np.pi) % (2 *
-                                                   np.pi) - np.pi  # Normalize
-
+        # Normalize to [-pi, pi]
+        angle_to_goal = (angle_to_goal + np.pi) % (2 * np.pi) - np.pi
         # Calculate goal heading difference (for final orientation alignment)
         goal_heading_diff = abs(
             (goal_yaw - current_heading + np.pi) % (2 * np.pi) - np.pi)
@@ -341,16 +340,15 @@ class Jackal_Env(gym.Env):
         # ========== PROGRESS TOWARD GOAL (Core Learning Signal) ==========
         prev_distance = np.sqrt((self.prev_x - goal_x)
                                 ** 2 + (self.prev_y - goal_y)**2)
-        # distance_reduction = prev_distance - distance_to_goal
-        distance_reduction = np.clip(
-            prev_distance - distance_to_goal, -0.5, 0.5)
-
-        reward += self.rewards["distance_progress"] * distance_reduction
+        distance_reduction = prev_distance - distance_to_goal
+        # reward += self.rewards["distance_progress"] * distance_reduction
+        # Increasing reward as distance to goal decreases
+        reward += self.rewards["distance_progress"] * (1.0 / distance_to_goal)
 
         # ========== DIRECTIONAL ALIGNMENT ==========
         if not self.position_achieved:
             # When far from goal, encourage pointing toward goal position
-            reward += self.rewards["alignment"] * np.cos(angle_to_goal)
+            reward += self.rewards["alignment"] * (np.cos(angle_to_goal)**2)
         else:
             # When at goal position, encourage aligning with goal orientation
             orientation_alignment = np.cos(goal_heading_diff)
@@ -399,7 +397,7 @@ class Jackal_Env(gym.Env):
             len(self.reward_dictionary["total_reward"]) + 1)
         self.reward_dictionary["total_reward"].append(reward)
         self.reward_dictionary["distance_progress"].append(
-            self.rewards["distance_progress"] * distance_reduction)
+            self.rewards["distance_progress"] * (1.0 / distance_to_goal))
         self.reward_dictionary["alignment"].append(
             self.rewards["alignment"] * (np.cos(angle_to_goal) if not self.position_achieved else 2.0 * np.cos(goal_heading_diff)))
         self.reward_dictionary["distance_traveled_penalty"].append(

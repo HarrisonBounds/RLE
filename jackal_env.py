@@ -9,6 +9,9 @@ from lidar_sensor import VLP16Sensor
 import json
 from scipy.spatial.transform import Rotation as R
 from randomize_obstacles import randomize_environment
+from scipy import ndimage
+from scipy.ndimage import gaussian_filter1d
+import os
 
 
 class Jackal_Env(gym.Env):
@@ -44,12 +47,9 @@ class Jackal_Env(gym.Env):
         basic_obs_size = self.model.nq + self.model.nv  # joint positions + velocities
 
         if self.use_lidar:
-            lidar_obs_size = (num_lidar_rays_h * num_lidar_rays_v)
             self.observation_space = spaces.Dict({
                 'state': spaces.Box(low=-np.inf, high=np.inf, shape=(basic_obs_size,), dtype=np.float32),
-                'lidar': spaces.Box(low=0, high=lidar_max_range,
-                                    shape=(num_lidar_rays_v, num_lidar_rays_h),
-                                    dtype=np.float32)
+                'lidar': spaces.Box(low=0, high=1.0, shape=(num_lidar_rays_h,), dtype=np.float32)
             })
         else:
             self.observation_space = spaces.Box(
@@ -170,23 +170,31 @@ class Jackal_Env(gym.Env):
         return False
 
     def _preprocess_lidar(self, lidar_ranges):
-        """Preprocess LiDAR data for better neural network training"""
+        """
+        Compress LiDAR from 16x360 → 360 by taking the minimum range across elevations.
+        Optionally normalize and weight the values for better learning.
+        """
+        # Take the minimum range across vertical channels (axis 0)
+        compressed_ranges = np.min(lidar_ranges, axis=0)  # Shape: (360,)
 
-        # 1. Normalize to [0, 1] range
-        normalized_ranges = lidar_ranges / self.lidar_max_range
+        # Normalize to [0, 1]
+        normalized = compressed_ranges / self.lidar_max_range
+        normalized = np.clip(normalized, 0.0, 1.0)
 
-        # 2. Apply inverse distance weighting for better obstacle representation
-        # Objects closer than 1m get exponentially higher values
-        inverse_ranges = 1.0 - normalized_ranges
-        weighted_ranges = np.where(normalized_ranges < 0.1,
-                                   inverse_ranges ** 2,
-                                   inverse_ranges)
+        # Optional inverse weighting for obstacle emphasis
+        weighted = 1.0 - normalized  # Close = high value
 
-        # 3. Optional: Apply Gaussian smoothing to reduce noise
-        from scipy import ndimage
-        smoothed_ranges = ndimage.gaussian_filter(weighted_ranges, sigma=0.5)
-
-        return smoothed_ranges
+        # Optional smoothing (Gaussian blur)
+        smoothed = gaussian_filter1d(weighted, sigma=1.0)
+        # If the file doesn't exist, plot and save the profile
+        if not os.path.exists("lidar_profile.png"):
+            plt.plot(smoothed)
+            plt.title("BEV LiDAR Profile")
+            plt.xlabel("Azimuth Angle Index (0° to 360°)")
+            plt.ylabel("Inverse Depth")
+            plt.grid()
+            plt.savefig("lidar_profile.png")
+        return smoothed.astype(np.float32)  # Shape: (360,)
 
     def _extract_lidar_features(self, lidar_ranges):
         """Extract meaningful features from LiDAR data"""
@@ -263,7 +271,7 @@ class Jackal_Env(gym.Env):
         rotation = R.from_quat(current_orientation[[1, 2, 3, 0]])
         current_heading = rotation.as_euler('xyz')[2]  # Yaw (rad)
         ang_vel = self.data.qvel[5]  # Angular velocity (rad/s)
-
+        reward += -0.2 * abs(ang_vel)
         # Track total distance traveled for efficiency penalty
         distance_step = 0.0
         if hasattr(self, 'prev_robot_x') and hasattr(self, 'prev_robot_y'):
@@ -333,7 +341,10 @@ class Jackal_Env(gym.Env):
         # ========== PROGRESS TOWARD GOAL (Core Learning Signal) ==========
         prev_distance = np.sqrt((self.prev_x - goal_x)
                                 ** 2 + (self.prev_y - goal_y)**2)
-        distance_reduction = prev_distance - distance_to_goal
+        # distance_reduction = prev_distance - distance_to_goal
+        distance_reduction = np.clip(
+            prev_distance - distance_to_goal, -0.5, 0.5)
+
         reward += self.rewards["distance_progress"] * distance_reduction
 
         # ========== DIRECTIONAL ALIGNMENT ==========

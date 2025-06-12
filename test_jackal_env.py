@@ -75,8 +75,12 @@ agent.critic.to(DEVICE)
 # Reset env and get first observation
 raw_observation, info = env.reset()  # Renamed to raw_observation for clarity
 # Process the Dict observation for the agent input
+# processed_state = np.concatenate(
+#     [raw_observation['state'].flatten(), raw_observation['lidar'].flatten()])
+# Compress LiDAR using the environment's method
+compressed_lidar = env._preprocess_lidar(raw_observation['lidar'])
 processed_state = np.concatenate(
-    [raw_observation['state'].flatten(), raw_observation['lidar'].flatten()])
+    [raw_observation['state'].flatten(), compressed_lidar])
 
 
 def create_reward_plots(reward_history, save_path):
@@ -141,8 +145,10 @@ try:
             env.render()
 
             # Process the new raw observation for the agent and buffer
+            compressed_lidar = env._preprocess_lidar(
+                raw_new_observation['lidar'])
             new_processed_state = np.concatenate(
-                [raw_new_observation['state'].flatten(), raw_new_observation['lidar'].flatten()])
+                [raw_new_observation['state'].flatten(), compressed_lidar])
 
             done_flag = True if terminated or truncated else False
 
@@ -173,8 +179,10 @@ try:
                 # Reset environment and get new raw observation
                 raw_observation, info = env.reset()
                 # Process the new initial raw observation for the next step
+                compressed_lidar = env._preprocess_lidar(
+                    raw_observation['lidar'])
                 processed_state = np.concatenate(
-                    [raw_observation['state'].flatten(), raw_observation['lidar'].flatten()])
+                    [raw_observation['state'].flatten(), compressed_lidar])
                 # Reset episode specific counters
                 episode_reward_sum = 0
                 episode_steps = 0

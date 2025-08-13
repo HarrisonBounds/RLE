@@ -1,3 +1,0 @@
-# RLE
-
-Reinforcement Learning Exploration

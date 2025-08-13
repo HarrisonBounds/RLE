@@ -1,4 +1,0 @@
-mujoco
-gymnasium
-torch
-matplotlib
